@@ -3,28 +3,29 @@
  * To change this template file, choose Tools | Templates
  * and open the template in the editor.
  */
-package rs.handlegraph.sparql.values;
+package io.github.vgteam.handlegraph4j.sparql.values;
 
+import io.github.vgteam.handlegraph4j.NodeHandle;
 import org.eclipse.rdf4j.model.IRI;
-import rs.handlegraph.sparql.RsHandleGraphSail;
+import io.github.vgteam.handlegraph4j.sparql.PathHandleGraphSail;
 
 /**
  *
  * @author jbollema
  */
-public class NodeIRI implements IRI {
+public class NodeIRI<N extends NodeHandle> implements IRI {
 
     private final long nodeId;
-    private final RsHandleGraphSail graph;
+    private final PathHandleGraphSail<?,?,N,?> graph;
 
-    public NodeIRI(long nodeId, RsHandleGraphSail graph) {
+    public NodeIRI(long nodeId, PathHandleGraphSail<?,?,N,?> graph) {
         this.nodeId = nodeId;
         this.graph = graph;
     }
 
     @Override
     public String getNamespace() {
-        return graph.getNodeNameSpace(nodeId);
+        return graph.getNodeNameSpace();
     }
 
     @Override
@@ -37,4 +38,11 @@ public class NodeIRI implements IRI {
         return getNamespace() + nodeId;
     }
 
+    public long id() {
+        return nodeId;
+    }
+    
+    public N node(){
+        return graph.pathGraph().fromLong(nodeId);
+    }
 }

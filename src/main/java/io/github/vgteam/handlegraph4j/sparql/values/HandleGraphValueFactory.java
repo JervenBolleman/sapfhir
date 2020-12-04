@@ -3,8 +3,13 @@
  * To change this template file, choose Tools | Templates
  * and open the template in the editor.
  */
-package rs.handlegraph.sparql.values;
+package io.github.vgteam.handlegraph4j.sparql.values;
 
+import io.github.vgteam.handlegraph4j.EdgeHandle;
+import io.github.vgteam.handlegraph4j.HandleGraph;
+import io.github.vgteam.handlegraph4j.NodeHandle;
+import io.github.vgteam.handlegraph4j.PathHandle;
+import io.github.vgteam.handlegraph4j.StepHandle;
 import static org.eclipse.rdf4j.model.impl.SimpleValueFactory.getInstance;
 import java.math.BigDecimal;
 import java.math.BigInteger;
@@ -18,17 +23,17 @@ import org.eclipse.rdf4j.model.Statement;
 import org.eclipse.rdf4j.model.Value;
 import org.eclipse.rdf4j.model.ValueFactory;
 import org.eclipse.rdf4j.model.impl.SimpleValueFactory;
-import rs.handlegraph.sparql.RsHandleGraphSail;
+import io.github.vgteam.handlegraph4j.sparql.PathHandleGraphSail;
 
 /**
  *
  * @author jbollema
  */
-public class RsHandleGraphValueFactory implements ValueFactory {
+public class HandleGraphValueFactory<P extends PathHandle, S extends StepHandle, N extends NodeHandle, E extends EdgeHandle<N>> implements ValueFactory {
 
-    private final RsHandleGraphSail graph;
+    private final PathHandleGraphSail<P, S, N, E> graph;
 
-    public RsHandleGraphValueFactory(RsHandleGraphSail graph) {
+    public HandleGraphValueFactory(PathHandleGraphSail<P, S, N, E> graph) {
         this.graph = graph;
     }
 
@@ -40,29 +45,27 @@ public class RsHandleGraphValueFactory implements ValueFactory {
     @Override
     public IRI createIRI(String namespace, String localName) {
         if (graph.hasPathNameSpace(namespace)) {
+            P p = graph.pathGraph().pathByName(namespace + localName);
+            return new PathIRI<>(p, graph);
+        } else if (graph.matchesNodeIriPattern(namespace)) {
             try {
                 long l = Long.valueOf(localName);
-                return new PathIRI(l, graph);
-            } catch (NumberFormatException e) {
-                return getInstance().createIRI(namespace, localName);
-            }
-        } else if (graph.hasNodeNameSpace(namespace)) {
-            try {
-                long l = Long.valueOf(localName);
-                return new NodeIRI(l, graph);
-            } catch (NumberFormatException e) {
-                return getInstance().createIRI(namespace, localName);
-            }
-        } else if (graph.matchesAStepInPathNameSpace(namespace)) {
-            try {
-                long pathId = graph.extractPathId(namespace);
-                long stepId = Long.valueOf(localName);
-                return new StepIRI(pathId, stepId, graph);
+                return new NodeIRI<>(l, graph);
             } catch (NumberFormatException e) {
                 return getInstance().createIRI(namespace, localName);
             }
         }
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+
+        try {
+            S step = graph.stepFromIriString(namespace + localName);
+            if (step != null) {
+                return new StepIRI(graph.pathGraph().pathOfStep(step), graph.pathGraph().rankOfStep(step), graph);
+            }
+        } catch (NumberFormatException e) {
+            return getInstance().createIRI(namespace, localName);
+        }
+
+        return getInstance().createIRI(namespace, localName);
     }
 
     @Override
@@ -153,5 +156,9 @@ public class RsHandleGraphValueFactory implements ValueFactory {
     @Override
     public Statement createStatement(Resource subject, IRI predicate, Value object, Resource context) {
         return getInstance().createStatement(subject, predicate, object, context);
+    }
+
+    public <N extends NodeHandle, E extends EdgeHandle<N>> Literal createSequenceLiteral(final N handle, HandleGraph<N, E> graph) {
+        return new SequenceLiteralWithNodeHandle<>(graph, handle);
     }
 }
