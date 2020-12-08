@@ -16,7 +16,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
  * MA 02110-1301  USA
  */
-package io.github.vgteam.handlegraph4j.sparql.values;
+package swiss.sib.swissprot.sapfhir.values;
 
 import io.github.vgteam.handlegraph4j.EdgeHandle;
 import io.github.vgteam.handlegraph4j.HandleGraph;
@@ -32,6 +32,8 @@ import org.eclipse.rdf4j.model.vocabulary.XSD;
 /**
  *
  * @author Jerven Bolleman <jerven.bolleman@sib.swiss>
+ * @param <E> the type of EdgeHandle
+ * @param <N> the type of NodeHandle
  */
 public class SequenceLiteralWithNodeHandle<N extends NodeHandle, E extends EdgeHandle<N>> implements Literal {
 
@@ -140,18 +142,18 @@ public class SequenceLiteralWithNodeHandle<N extends NodeHandle, E extends EdgeH
         }
         if (obj instanceof SequenceLiteralWithNodeHandle) {
             SequenceLiteralWithNodeHandle other = (SequenceLiteralWithNodeHandle) obj;
-            if (this.graph.equals(other.graph)) {
-                if (this.handle.equals(other.handle)) {
-                    return true;
-                }
+            if (this.graph.equals(other.graph)
+                    && this.handle.equals(other.handle)) {
+                return true;
             }
-            return graph.sequenceOf(handle).equals(other.graph.sequenceOf(other.handle));
+            return graph.sequenceOf(handle)
+                    .equals(other.graph.sequenceOf(other.handle));
         } else if (obj instanceof Literal) {
             Literal other = (Literal) obj;
             if (other.getLanguage().isPresent()) {
                 return false;
-            }
-            if (other.getDatatype() == null || XSD.STRING.equals(other.getDatatype())) {
+            } else if (other.getDatatype() == null
+                    || XSD.STRING.equals(other.getDatatype())) {
                 return getLabel().equals(other.getLabel());
             }
         }

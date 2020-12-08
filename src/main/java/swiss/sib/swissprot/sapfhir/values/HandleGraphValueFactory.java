@@ -3,7 +3,7 @@
  * To change this template file, choose Tools | Templates
  * and open the template in the editor.
  */
-package io.github.vgteam.handlegraph4j.sparql.values;
+package swiss.sib.swissprot.sapfhir.values;
 
 import io.github.vgteam.handlegraph4j.EdgeHandle;
 import io.github.vgteam.handlegraph4j.HandleGraph;
@@ -23,11 +23,15 @@ import org.eclipse.rdf4j.model.Statement;
 import org.eclipse.rdf4j.model.Value;
 import org.eclipse.rdf4j.model.ValueFactory;
 import org.eclipse.rdf4j.model.impl.SimpleValueFactory;
-import io.github.vgteam.handlegraph4j.sparql.PathHandleGraphSail;
+import swiss.sib.swissprot.sapfhir.sparql.PathHandleGraphSail;
 
 /**
  *
  * @author jbollema
+ * @param <P> the type of PathHandle
+ * @param <S> the type of StepHandle
+ * @param <E> the type of EdgeHandle
+ * @param <N> the type of NodeHandle
  */
 public class HandleGraphValueFactory<P extends PathHandle, S extends StepHandle, N extends NodeHandle, E extends EdgeHandle<N>> implements ValueFactory {
 

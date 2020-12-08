@@ -16,7 +16,7 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
  * MA 02110-1301  USA
  */
-package io.github.vgteam.handlegraph4j.sparql;
+package swiss.sib.swissprot.sapfhir.sparql;
 
 import io.github.vgteam.handlegraph4j.EdgeHandle;
 import io.github.vgteam.handlegraph4j.NodeHandle;
@@ -24,16 +24,19 @@ import io.github.vgteam.handlegraph4j.PathGraph;
 import io.github.vgteam.handlegraph4j.PathHandle;
 import io.github.vgteam.handlegraph4j.StepHandle;
 import org.eclipse.rdf4j.model.ValueFactory;
-import org.eclipse.rdf4j.sail.SailConnection;
 import org.eclipse.rdf4j.sail.SailException;
 import org.eclipse.rdf4j.sail.helpers.AbstractSail;
-import io.github.vgteam.handlegraph4j.sparql.values.HandleGraphValueFactory;
+import swiss.sib.swissprot.sapfhir.values.HandleGraphValueFactory;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
  *
  * @author jbollema
+ * @param <P> the type of PathHandle
+ * @param <S> the type of StepHandle
+ * @param <E> the type of EdgeHandle
+ * @param <N> the type of NodeHandle
  */
 public class PathHandleGraphSail<P extends PathHandle, S extends StepHandle, N extends NodeHandle, E extends EdgeHandle<N>> extends AbstractSail {
 
@@ -115,6 +118,16 @@ public class PathHandleGraphSail<P extends PathHandle, S extends StepHandle, N e
             } catch (NumberFormatException e) {
                 return null;
             }
+        } else {
+            return null;
+        }
+    }
+     
+    public P pathFromIriString(String possiblePathIri){
+        if (possiblePathIri.startsWith(base + PATH_IRI_PART)) {
+            return pathGraph.pathByName(possiblePathIri.substring(base.length() + PATH_IRI_PART.length()));
+        } else if (mightBeHttpOrFtpIri(possiblePathIri)) {
+            return pathGraph.pathByName(possiblePathIri);
         } else {
             return null;
         }

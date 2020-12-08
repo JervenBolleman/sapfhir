@@ -16,19 +16,24 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
  * MA 02110-1301  USA
  */
-package io.github.vgteam.handlegraph4j.sparql;
+package swiss.sib.swissprot.sapfhir.sparql;
 
 import io.github.vgteam.handlegraph4j.EdgeHandle;
 import io.github.vgteam.handlegraph4j.NodeHandle;
 import io.github.vgteam.handlegraph4j.PathHandle;
 import io.github.vgteam.handlegraph4j.StepHandle;
+import java.util.Iterator;
+import java.util.List;
 import org.eclipse.rdf4j.common.iteration.CloseableIteration;
+import org.eclipse.rdf4j.common.iteration.CloseableIteratorIteration;
 import org.eclipse.rdf4j.common.iteration.EmptyIteration;
 import org.eclipse.rdf4j.model.IRI;
 import org.eclipse.rdf4j.model.Namespace;
 import org.eclipse.rdf4j.model.Resource;
 import org.eclipse.rdf4j.model.Statement;
 import org.eclipse.rdf4j.model.Value;
+import org.eclipse.rdf4j.model.impl.SimpleNamespace;
+import org.eclipse.rdf4j.model.vocabulary.RDFS;
 import org.eclipse.rdf4j.query.BindingSet;
 import org.eclipse.rdf4j.query.Dataset;
 import org.eclipse.rdf4j.query.QueryEvaluationException;
@@ -41,12 +46,16 @@ import org.eclipse.rdf4j.query.impl.EmptyBindingSet;
 import org.eclipse.rdf4j.repository.sparql.federation.SPARQLServiceResolver;
 import org.eclipse.rdf4j.sail.SailException;
 import org.eclipse.rdf4j.sail.helpers.AbstractSailConnection;
-import sib.swiss.swissprot.handlegraph4jrdf.FALDO;
-import sib.swiss.swissprot.handlegraph4jrdf.VG;
+import swiss.sib.swissprot.handlegraph4jrdf.FALDO;
+import swiss.sib.swissprot.handlegraph4jrdf.VG;
 
 /**
  *
  * @author jbollema
+ * @param <P> the type of PathHandle
+ * @param <S> the type of StepHandle
+ * @param <E> the type of EdgeHandle
+ * @param <N> the type of NodeHandle
  */
 public class PathHandleGraphTripleSailConnection<P extends PathHandle, S extends StepHandle, N extends NodeHandle, E extends EdgeHandle<N>> extends AbstractSailConnection {
 
@@ -127,12 +136,16 @@ public class PathHandleGraphTripleSailConnection<P extends PathHandle, S extends
 
     @Override
     protected CloseableIteration<? extends Namespace, SailException> getNamespacesInternal() throws SailException {
-        throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+        Iterator<SimpleNamespace> ns = List.of(new SimpleNamespace(FALDO.PREFIX, FALDO.NAMESPACE),
+                new SimpleNamespace(VG.PREFIX, VG.NAMESPACE),
+                new SimpleNamespace(RDFS.PREFIX, RDFS.NAMESPACE))
+                .iterator();
+        return new CloseableIteratorIteration<>(ns);
     }
 
     @Override
     protected String getNamespaceInternal(String prefix) throws SailException {
-        switch (prefix){
+        switch (prefix) {
             case FALDO.PREFIX:
                 return FALDO.NAMESPACE;
             case VG.PREFIX:
