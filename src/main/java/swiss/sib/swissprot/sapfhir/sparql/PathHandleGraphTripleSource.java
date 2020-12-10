@@ -22,6 +22,7 @@ import io.github.vgteam.handlegraph4j.EdgeHandle;
 import io.github.vgteam.handlegraph4j.NodeHandle;
 import io.github.vgteam.handlegraph4j.PathHandle;
 import io.github.vgteam.handlegraph4j.StepHandle;
+import io.github.vgteam.handlegraph4j.sequences.AutoClosedIterator;
 import swiss.sib.swissprot.sapfhir.statements.NodeRelatedStatementProvider;
 import swiss.sib.swissprot.sapfhir.statements.PathRelatedStatementProvider;
 import swiss.sib.swissprot.sapfhir.statements.StatementProvider;
@@ -30,6 +31,7 @@ import swiss.sib.swissprot.sapfhir.statements.StepRelatedStatementProvider;
 import swiss.sib.swissprot.sapfhir.values.HandleGraphValueFactory;
 import java.util.Iterator;
 import java.util.List;
+import java.util.function.Function;
 import java.util.stream.Stream;
 import org.eclipse.rdf4j.common.iteration.CloseableIteration;
 import org.eclipse.rdf4j.common.iteration.EmptyIteration;
@@ -76,12 +78,15 @@ public class PathHandleGraphTripleSource<P extends PathHandle, S extends StepHan
         if (subject instanceof BNode || object instanceof BNode) {
             return new EmptyIteration<>();
         }
-        Stream<Statement> stream = statementProviders.stream()
+        var iter = statementProviders.stream()
                 .filter((sp) -> sp.subjectMightReturnValues(subject)
                 && sp.predicateMightReturnValues(predicate)
-                && sp.objectMightReturnValues(object))
-                .flatMap(p -> p.getStatements(subject, predicate, object));
-
+                && sp.objectMightReturnValues(object));
+        var from = AutoClosedIterator.from(iter);
+        Function<StatementProvider, AutoClosedIterator<Statement>> providerToStat
+                = p -> p.getStatements(subject, predicate, object);
+        var map = AutoClosedIterator.map(from, providerToStat);
+        AutoClosedIterator<Statement> stream = AutoClosedIterator.flatMap(map);
         return new CloseableIterationFromStream(stream);
 
     }
@@ -94,17 +99,15 @@ public class PathHandleGraphTripleSource<P extends PathHandle, S extends StepHan
     private static class CloseableIterationFromStream
             implements CloseableIteration<Statement, QueryEvaluationException> {
 
-        private final Stream<Statement> stream;
-        private final Iterator<Statement> providedAsIter;
+        private final AutoClosedIterator<Statement> providedAsIter;
 
-        public CloseableIterationFromStream(Stream<Statement> stream) {
-            this.stream = stream;
-            this.providedAsIter = stream.iterator();
+        public CloseableIterationFromStream(AutoClosedIterator<Statement> providedAsIter) {
+            this.providedAsIter = providedAsIter;
         }
 
         @Override
         public void close() throws QueryEvaluationException {
-            stream.close();
+            providedAsIter.close();
         }
 
         @Override

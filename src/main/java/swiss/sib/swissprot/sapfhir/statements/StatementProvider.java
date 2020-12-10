@@ -21,6 +21,7 @@ package swiss.sib.swissprot.sapfhir.statements;
 import io.github.vgteam.handlegraph4j.NodeHandle;
 import io.github.vgteam.handlegraph4j.PathHandle;
 import io.github.vgteam.handlegraph4j.StepHandle;
+import io.github.vgteam.handlegraph4j.sequences.AutoClosedIterator;
 import swiss.sib.swissprot.sapfhir.sparql.PathHandleGraphSail;
 import swiss.sib.swissprot.sapfhir.values.NodeIRI;
 import swiss.sib.swissprot.sapfhir.values.PathIRI;
@@ -32,9 +33,9 @@ import org.eclipse.rdf4j.model.Statement;
 import org.eclipse.rdf4j.model.Value;
 
 /**
- * Collection of code to test if a certain basic graph pattern can be turned 
+ * Collection of code to test if a certain basic graph pattern can be turned
  * into a Stream of statements.
- * 
+ *
  * @author Jerven Bolleman <jerven.bolleman@sib.swiss>
  */
 public interface StatementProvider {
@@ -47,7 +48,7 @@ public interface StatementProvider {
         return sub == null || sub instanceof IRI;
     }
 
-    Stream<Statement> getStatements(Resource subject, IRI predicate, Value object);
+    AutoClosedIterator<Statement> getStatements(Resource subject, IRI predicate, Value object);
 
     static <P extends PathHandle> PathIRI<P> pathIriFromIri(IRI subject, PathHandleGraphSail<P, ?, ?, ?> sail) {
         if (subject instanceof PathIRI) {
@@ -90,11 +91,11 @@ public interface StatementProvider {
         }
     }
 
-    static Stream<Statement> filter(Value object, Stream<Statement> stream) {
+    static AutoClosedIterator<Statement> filter(Value object, AutoClosedIterator<Statement> stream) {
         if (object == null) {
             return stream;
         } else {
-            return stream.filter(s -> object.equals(s.getObject()));
+            return AutoClosedIterator.filter(stream, s -> object.equals(s.getObject()));
         }
     }
 }
