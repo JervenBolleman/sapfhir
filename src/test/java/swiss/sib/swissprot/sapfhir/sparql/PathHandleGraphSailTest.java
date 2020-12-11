@@ -23,6 +23,7 @@ import io.github.vgteam.handlegraph4j.gfa1.GFA1Reader;
 import swiss.sib.swissprot.sapfhir.values.HandleGraphValueFactory;
 import swiss.sib.swissprot.sapfhir.values.StepBeginPositionIRI;
 import java.util.Arrays;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import org.eclipse.rdf4j.model.IRI;
 import org.eclipse.rdf4j.model.Literal;
@@ -339,6 +340,68 @@ public class PathHandleGraphSailTest {
 
             evaluate(allStepsHaveARank, connection, test);
 
+        }
+    }
+
+    @Test
+    public void testValueQueries() {
+        SailRepository instance = getSail();
+        String allSequences = "SELECT ?value WHERE {?node rdf:value ?value}";
+        String allNodesHaveASequence = "SELECT ?value WHERE {?node a vg:Node ; rdf:value ?value}";
+
+        Consumer<TupleQueryResult> test = r -> {
+            for (int i = 0; i < spg.nodeCount(); i++) {
+                assertTrue(r.hasNext(), "at i:" + i);
+                BindingSet next = r.next();
+                assertNotNull(next);
+                var value = next.getBinding("value").getValue();
+                assertTrue(value instanceof Literal);
+            }
+            assertFalse(r.hasNext());
+        };
+        try ( RepositoryConnection connection = instance.getConnection()) {
+
+            evaluate(allSequences, connection, test);
+
+            evaluate(allNodesHaveASequence, connection, test);
+
+        }
+    }
+
+    @Test
+    public void testAllQueries() {
+        SailRepository instance = getSail();
+        String all = "SELECT ?s ?p ?o WHERE {?s ?p ?o}";
+        AtomicInteger in = new AtomicInteger();
+        Consumer<TupleQueryResult> test = r -> {
+            while (r.hasNext()) {
+                BindingSet next = r.next();
+                assertNotNull(next);
+                var value = next.getBinding("p").getValue();
+                assertTrue(value instanceof IRI);
+                in.incrementAndGet();
+            }
+        };
+        try ( RepositoryConnection connection = instance.getConnection()) {
+
+            evaluate(all, connection, test);
+        }
+
+        String countAll = "SELECT (COUNT(?s) AS ?c) WHERE {?s ?p ?o}";
+
+        Consumer<TupleQueryResult> test2 = r -> {
+            assertTrue(r.hasNext());
+            BindingSet next = r.next();
+            assertNotNull(next);
+            var value = next.getBinding("c").getValue();
+            assertTrue(value instanceof Literal);
+            var l = (Literal) value;
+            assertEquals(in.get(), l.intValue());
+            assertFalse(r.hasNext());
+        };
+        try ( RepositoryConnection connection = instance.getConnection()) {
+
+            evaluate(countAll, connection, test2);
         }
     }
 

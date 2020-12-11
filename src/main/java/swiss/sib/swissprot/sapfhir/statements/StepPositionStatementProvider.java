@@ -23,7 +23,7 @@ import io.github.vgteam.handlegraph4j.NodeHandle;
 import io.github.vgteam.handlegraph4j.PathGraph;
 import io.github.vgteam.handlegraph4j.PathHandle;
 import io.github.vgteam.handlegraph4j.StepHandle;
-import io.github.vgteam.handlegraph4j.sequences.AutoClosedIterator;
+import io.github.vgteam.handlegraph4j.iterators.AutoClosedIterator;
 import swiss.sib.swissprot.sapfhir.sparql.PathHandleGraphSail;
 import static swiss.sib.swissprot.sapfhir.statements.StatementProvider.filter;
 import swiss.sib.swissprot.sapfhir.values.HandleGraphValueFactory;

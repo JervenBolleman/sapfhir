@@ -154,11 +154,19 @@ public class HandleGraphValueFactory<P extends PathHandle, S extends StepHandle,
 
     @Override
     public Statement createStatement(Resource subject, IRI predicate, Value object) {
+        if (subject == null || predicate == null || object == null) {
+            throw new NullPointerException("somethings null"
+                    + subject + ':' + predicate + ':' + object);
+        }
         return getInstance().createStatement(subject, predicate, object);
     }
 
     @Override
     public Statement createStatement(Resource subject, IRI predicate, Value object, Resource context) {
+        if (subject == null || predicate == null || object == null) {
+            throw new NullPointerException("somethings null"
+                    + subject + ':' + predicate + ':' + object);
+        }
         return getInstance().createStatement(subject, predicate, object, context);
     }
 

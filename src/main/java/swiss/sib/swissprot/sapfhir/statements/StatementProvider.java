@@ -21,7 +21,7 @@ package swiss.sib.swissprot.sapfhir.statements;
 import io.github.vgteam.handlegraph4j.NodeHandle;
 import io.github.vgteam.handlegraph4j.PathHandle;
 import io.github.vgteam.handlegraph4j.StepHandle;
-import io.github.vgteam.handlegraph4j.sequences.AutoClosedIterator;
+import io.github.vgteam.handlegraph4j.iterators.AutoClosedIterator;
 import swiss.sib.swissprot.sapfhir.sparql.PathHandleGraphSail;
 import swiss.sib.swissprot.sapfhir.values.NodeIRI;
 import swiss.sib.swissprot.sapfhir.values.PathIRI;

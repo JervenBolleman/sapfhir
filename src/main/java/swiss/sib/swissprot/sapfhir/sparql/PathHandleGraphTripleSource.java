@@ -22,17 +22,15 @@ import io.github.vgteam.handlegraph4j.EdgeHandle;
 import io.github.vgteam.handlegraph4j.NodeHandle;
 import io.github.vgteam.handlegraph4j.PathHandle;
 import io.github.vgteam.handlegraph4j.StepHandle;
-import io.github.vgteam.handlegraph4j.sequences.AutoClosedIterator;
+import io.github.vgteam.handlegraph4j.iterators.AutoClosedIterator;
 import swiss.sib.swissprot.sapfhir.statements.NodeRelatedStatementProvider;
 import swiss.sib.swissprot.sapfhir.statements.PathRelatedStatementProvider;
 import swiss.sib.swissprot.sapfhir.statements.StatementProvider;
 import swiss.sib.swissprot.sapfhir.statements.StepPositionStatementProvider;
 import swiss.sib.swissprot.sapfhir.statements.StepRelatedStatementProvider;
 import swiss.sib.swissprot.sapfhir.values.HandleGraphValueFactory;
-import java.util.Iterator;
 import java.util.List;
 import java.util.function.Function;
-import java.util.stream.Stream;
 import org.eclipse.rdf4j.common.iteration.CloseableIteration;
 import org.eclipse.rdf4j.common.iteration.EmptyIteration;
 import org.eclipse.rdf4j.model.BNode;
@@ -100,6 +98,7 @@ public class PathHandleGraphTripleSource<P extends PathHandle, S extends StepHan
             implements CloseableIteration<Statement, QueryEvaluationException> {
 
         private final AutoClosedIterator<Statement> providedAsIter;
+        private Statement last;
 
         public CloseableIterationFromStream(AutoClosedIterator<Statement> providedAsIter) {
             this.providedAsIter = providedAsIter;
@@ -117,12 +116,17 @@ public class PathHandleGraphTripleSource<P extends PathHandle, S extends StepHan
 
         @Override
         public Statement next() throws QueryEvaluationException {
-            return providedAsIter.next();
+            Statement next = providedAsIter.next();
+            if (next == null) {
+                throw new NullPointerException("null after" + last);
+            }
+            last = next;
+            return next;
         }
 
         @Override
         public void remove() throws QueryEvaluationException {
-
+            providedAsIter.remove();
         }
     }
 }

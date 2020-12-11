@@ -17,13 +17,16 @@
  * MA 02110-1301  USA
  */
 package swiss.sib.swissprot.sapfhir.statements;
+import static io.github.vgteam.handlegraph4j.iterators.AutoClosedIterator.map;
+import static io.github.vgteam.handlegraph4j.iterators.AutoClosedIterator.flatMap;
+import static io.github.vgteam.handlegraph4j.iterators.AutoClosedIterator.from;
 
 import static swiss.sib.swissprot.sapfhir.statements.StatementProvider.nodeIriFromIRI;
 import io.github.vgteam.handlegraph4j.EdgeHandle;
 import io.github.vgteam.handlegraph4j.NodeHandle;
 import io.github.vgteam.handlegraph4j.PathHandle;
 import io.github.vgteam.handlegraph4j.StepHandle;
-import io.github.vgteam.handlegraph4j.sequences.AutoClosedIterator;
+import io.github.vgteam.handlegraph4j.iterators.AutoClosedIterator;
 import io.github.vgteam.handlegraph4j.sequences.Sequence;
 import io.github.vgteam.handlegraph4j.sequences.SequenceType;
 import swiss.sib.swissprot.sapfhir.sparql.PathHandleGraphSail;
@@ -35,7 +38,6 @@ import java.util.Iterator;
 import java.util.Objects;
 import java.util.Set;
 import java.util.function.Function;
-import java.util.stream.Stream;
 import org.eclipse.rdf4j.model.BNode;
 import org.eclipse.rdf4j.model.IRI;
 import org.eclipse.rdf4j.model.Literal;
@@ -85,7 +87,9 @@ public class NodeRelatedStatementProvider<P extends PathHandle, S extends StepHa
 
     @Override
     public boolean objectMightReturnValues(Value val) {
-        if (VG.Node.equals(val)) {
+        if (val == null) {
+            return true;
+        } else if (VG.Node.equals(val)) {
             return true;
         } else if (val instanceof Literal) {
             Literal lit = (Literal) val;
@@ -112,7 +116,7 @@ public class NodeRelatedStatementProvider<P extends PathHandle, S extends StepHa
                 sail.pathGraph().followEdgesToWardsTheRight(nodeObject.node());
             } else if (VG.Node.equals(object)) {
                 AutoClosedIterator<N> nodes = sail.pathGraph().nodes();
-                return AutoClosedIterator.map(nodes, (n) -> {
+                return map(nodes, (n) -> {
                     var ni = new NodeIRI<>(n.id(), sail);
                     return vf.createStatement(ni, RDF.TYPE, VG.Node);
                 });
@@ -125,13 +129,14 @@ public class NodeRelatedStatementProvider<P extends PathHandle, S extends StepHa
         AutoClosedIterator<N> nodes1 = sail.pathGraph().nodes();
 
         //All nodes
-        var to = AutoClosedIterator.map(nodes1, (n) -> nodeToTriples(n, predicate, object));
-        var nodes = AutoClosedIterator.flatMap(to);
+        var to = map(nodes1, (n) -> nodeToTriples(n, predicate, object));
+        var nodes = flatMap(to);
         if (predicate == null || linkPredicates.contains(predicate)) {
             var edges = sail.pathGraph().edges();
             var edgeStatements = edgesToStatements(predicate, edges);
-            var i = new AutoClosedIterator.Collect(nodes, edgeStatements);
-            return AutoClosedIterator.from(i);
+            var i = AutoClosedIterator.of(nodes, edgeStatements);
+            var m = AutoClosedIterator.map(i, AutoClosedIterator::from);
+            return AutoClosedIterator.flatMap(m);
 //            return Stream.concat(nodes, edgeStatements);
         }
         return nodes;
@@ -141,12 +146,16 @@ public class NodeRelatedStatementProvider<P extends PathHandle, S extends StepHa
         N node = nodeSubject.node();
         var typeValue = nodeToTriples(node, predicate, object);
 
-        if ((predicate == null || linkPredicates.contains(predicate) && (object instanceof IRI) || object == null)) {
+        if ((predicate == null || linkPredicates.contains(predicate))
+                && ((object instanceof IRI)
+                || object == null)) {
             NodeIRI nodeObject = nodeIriFromIRI((IRI) object, sail);
             var linksForNode = linksForNode(node, predicate, nodeObject);
-            Iterator<AutoClosedIterator<Statement>> ai = Arrays.asList(typeValue, linksForNode).iterator();
-            var i = new AutoClosedIterator.CollectingOfIterator(ai);
-            return AutoClosedIterator.from(i);
+            var ai = Arrays.asList(typeValue, linksForNode)
+                    .iterator();
+            var m = AutoClosedIterator.map(ai, AutoClosedIterator::from);
+            var i = AutoClosedIterator.flatMap(m);
+            return from(i);
         }
         return typeValue;
     }
@@ -162,8 +171,8 @@ public class NodeRelatedStatementProvider<P extends PathHandle, S extends StepHa
                 var nodesWithSequence = sail.pathGraph().nodesWithSequence(seq);
                 Function<N, AutoClosedIterator<Statement>> name
                         = n -> nodeToTriples(n, predicate, object);
-                var map = AutoClosedIterator.map(nodesWithSequence, name);
-                return AutoClosedIterator.flatMap(map);
+                var map = map(nodesWithSequence, name);
+                return flatMap(map);
             }
         }
         return AutoClosedIterator.empty();
@@ -183,7 +192,7 @@ public class NodeRelatedStatementProvider<P extends PathHandle, S extends StepHa
             }
         }
         Iterator<Statement> iterator = Arrays.asList(statements).iterator();
-        var i = AutoClosedIterator.from(iterator);
+        var i = from(iterator);
         return AutoClosedIterator.filter(i, Objects::nonNull);
     }
 
@@ -201,26 +210,27 @@ public class NodeRelatedStatementProvider<P extends PathHandle, S extends StepHa
 
     private AutoClosedIterator<Statement> edgesToStatements(IRI predicate, AutoClosedIterator<E> asStream) {
         if (VG.linksForwardToForward.equals(predicate)) {
-            return AutoClosedIterator.map(asStream, this::forwardToForward);
+            return map(asStream, this::forwardToForward);
         } else if (VG.linksForwardToReverse.equals(predicate)) {
-            return AutoClosedIterator.map(asStream, this::forwardToReverse);
+            return map(asStream, this::forwardToReverse);
         } else if (VG.linksReverseToReverse.equals(predicate)) {
-            return AutoClosedIterator.map(asStream, this::reverseToReverse);
+            return map(asStream, this::reverseToReverse);
         } else if (VG.linksReverseToForward.equals(predicate)) {
-            return AutoClosedIterator.map(asStream, this::reverseToForward);
+            return map(asStream, this::reverseToForward);
         } else if (VG.links.equals(predicate)) {
-            return AutoClosedIterator.map(asStream, this::links);
+            return map(asStream, this::links);
         } else {
-            var map = AutoClosedIterator.map(asStream, e -> {
+            var map = map(asStream, e -> {
                 var i = Arrays.asList(
                         forwardToForward(e),
                         forwardToReverse(e),
                         reverseToReverse(e),
                         reverseToForward(e),
                         links(e)).iterator();
-                return AutoClosedIterator.from(i);
+                return from(i);
             });
-            return AutoClosedIterator.flatMap(map);
+            return AutoClosedIterator.filter(flatMap(map),
+                    Objects::nonNull);
         }
     }
 

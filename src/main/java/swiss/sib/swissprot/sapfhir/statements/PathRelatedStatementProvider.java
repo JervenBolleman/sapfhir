@@ -18,17 +18,17 @@
  */
 package swiss.sib.swissprot.sapfhir.statements;
 
+import static io.github.vgteam.handlegraph4j.iterators.AutoClosedIterator.*;
 import static swiss.sib.swissprot.sapfhir.statements.StatementProvider.pathIriFromIri;
 import io.github.vgteam.handlegraph4j.EdgeHandle;
 import io.github.vgteam.handlegraph4j.NodeHandle;
 import io.github.vgteam.handlegraph4j.PathHandle;
 import io.github.vgteam.handlegraph4j.StepHandle;
-import io.github.vgteam.handlegraph4j.sequences.AutoClosedIterator;
+import io.github.vgteam.handlegraph4j.iterators.AutoClosedIterator;
 import swiss.sib.swissprot.sapfhir.sparql.PathHandleGraphSail;
 import static swiss.sib.swissprot.sapfhir.statements.StatementProvider.filter;
 import swiss.sib.swissprot.sapfhir.values.HandleGraphValueFactory;
 import swiss.sib.swissprot.sapfhir.values.PathIRI;
-import java.util.stream.Stream;
 import org.eclipse.rdf4j.model.BNode;
 import org.eclipse.rdf4j.model.IRI;
 import org.eclipse.rdf4j.model.Literal;
@@ -78,49 +78,51 @@ public class PathRelatedStatementProvider<P extends PathHandle, S extends StepHa
             IRI predicate,
             Value object) {
         if (subject instanceof BNode) {
-            return AutoClosedIterator.empty();
+            return empty();
         } else if (subject == null) {
             AutoClosedIterator<P> paths = sail.pathGraph().paths();
-            var iris = AutoClosedIterator.map(paths, p -> new PathIRI<P>(p, sail));
-            var stats = AutoClosedIterator.map(iris, p -> this.getStatements(p, predicate, object));
+            var iris = map(paths, p -> new PathIRI<P>(p, sail));
+            var stats = map(iris, p -> this.getStatements(p, predicate, object));
             return AutoClosedIterator.flatMap(stats);
         } else if (subject instanceof IRI) {
             PathIRI<P> pathIRI = pathIriFromIri((IRI) subject, sail);
             if (pathIRI == null) {
-                return AutoClosedIterator.empty();
+                return empty();
             } else if (RDF.TYPE.equals(predicate)) {
                 return knownSubjectTypeStatements(pathIRI, object);
             } else if (RDFS.LABEL.equals(predicate)) {
                 return knownSubjectLabelStatements(pathIRI, object);
             } else {
-                return new AutoClosedIterator.Collect(knownSubjectTypeStatements(pathIRI, object),
+                var of = of(
+                        knownSubjectTypeStatements(pathIRI, object),
                         knownSubjectLabelStatements(pathIRI, object));
+                return AutoClosedIterator.flatMap(of);
             }
         } else {
-            return AutoClosedIterator.empty();
+            return empty();
         }
     }
 
     private AutoClosedIterator<Statement> knownSubjectTypeStatements(PathIRI<P> pathIRI,
             Value object) {
         if (object instanceof BNode || object instanceof Literal) {
-            return AutoClosedIterator.empty();
+            return empty();
         }
         Statement stat = vf.createStatement(pathIRI, RDF.TYPE, VG.Path);
-        AutoClosedIterator<Statement> stream = AutoClosedIterator.of(stat);
+        AutoClosedIterator<Statement> stream = of(stat);
         return filter(object, stream);
     }
 
     private AutoClosedIterator<Statement> knownSubjectLabelStatements(PathIRI<P> pathIRI,
             Value object) {
         if (object instanceof BNode || object instanceof IRI) {
-            return AutoClosedIterator.empty();
+            return empty();
         }
         String nameOfPath = sail.pathGraph().nameOfPath(pathIRI.path());
         Literal label = vf.createLiteral(nameOfPath);
         Statement stat = vf.createStatement(pathIRI, RDFS.LABEL, label);
 
-        AutoClosedIterator<Statement> stream = AutoClosedIterator.of(stat);
+        AutoClosedIterator<Statement> stream = of(stat);
         return filter(object, stream);
     }
 
