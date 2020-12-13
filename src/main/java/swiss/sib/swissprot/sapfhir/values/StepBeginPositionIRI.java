@@ -18,28 +18,30 @@ import java.util.Objects;
  * @param <P> the type of PathHandle
  * @param <S> the type of StepHandle
  */
-public class StepBeginPositionIRI<P extends PathHandle, S extends StepHandle> implements StepPositionIRI<P, S> {
-
-    private final P pathId;
-    private final long rank;
-    final PathHandleGraphSail<P, S, ?, ?> graph;
+public class StepBeginPositionIRI<P extends PathHandle, S extends StepHandle> extends StepPositionIRI<P, S> {
 
     public StepBeginPositionIRI(P pathId, long rank, PathHandleGraphSail<P, S, ?, ?> graph) {
-        this.pathId = pathId;
-        this.rank = rank;
-        this.graph = graph;
+        this(pathId, rank, graph, -404);
+    }
+
+    public StepBeginPositionIRI(P pathId, long rank, PathHandleGraphSail<P, S, ?, ?> graph, long beginPosition) {
+        super(beginPosition, pathId, rank, graph);
     }
 
     @Override
     public String getNamespace() {
-        return graph.getPathNameSpace(pathId) + StepPositionIRI.POSITION;
+        return graph.getPathNameSpace(path) + StepPositionIRI.POSITION;
     }
 
     @Override
     public String getLocalName() {
         PathGraph<P, S, ?, ?> pathGraph = graph.pathGraph();
-        S step = pathGraph.stepByRankAndPath(pathId, rank);
-        return Long.toString(pathGraph.beginPositionOfStep(step));
+        S step = pathGraph.stepByRankAndPath(path, rank);
+        if (hasCachedPosition()) {
+            return Long.toString(pathGraph.beginPositionOfStep(step));
+        } else {
+            return Long.toString(position);
+        }
     }
 
     @Override
@@ -87,8 +89,8 @@ public class StepBeginPositionIRI<P extends PathHandle, S extends StepHandle> im
             return true;
         } else {
             StepBeginPositionIRI<P, S> other2 = (StepBeginPositionIRI<P, S>) obj;
-            long ourposition = getBeginPosition(this);
-            long thatPosition = getBeginPosition(other2);
+            long ourposition = this.getBeginPosition();
+            long thatPosition = other2.getBeginPosition();
             return ourposition == thatPosition;
 
         }
@@ -106,29 +108,26 @@ public class StepBeginPositionIRI<P extends PathHandle, S extends StepHandle> im
             return false;
         } else {
             StepEndPositionIRI<P, S> other2 = (StepEndPositionIRI<P, S>) obj;
-            long ourposition = getBeginPosition(this);
-            long thatPosition = getEndPosition(other2);
+            long ourposition = getBeginPosition();
+            long thatPosition = other2.getEndPosition();
             return ourposition == thatPosition;
         }
     }
 
-    private long getBeginPosition(StepBeginPositionIRI<P, S> stepBeginIri) {
+    @Override
+    public long getBeginPosition() {
+        if (hasCachedPosition()) {
+            return position;
+        }
         PathGraph<P, S, ?, ?> pg = graph.pathGraph();
-        S s = pg.stepByRankAndPath(stepBeginIri.path(), stepBeginIri.rank());
+        S s = pg.stepByRankAndPath(path(), rank());
         return graph.pathGraph().beginPositionOfStep(s);
     }
 
-    private long getEndPosition(StepEndPositionIRI<P, S> stepEndIri) {
+    @Override
+    public long getEndPosition() {
         PathGraph<P, S, ?, ?> pg = graph.pathGraph();
-        S s = pg.stepByRankAndPath(stepEndIri.path(), stepEndIri.rank());
+        S s = pg.stepByRankAndPath(path(), rank());
         return graph.pathGraph().endPositionOfStep(s);
-    }
-
-    public P path() {
-        return pathId;
-    }
-
-    public long rank() {
-        return rank;
     }
 }

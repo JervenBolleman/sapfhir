@@ -59,9 +59,9 @@ public class PathHandleGraphTripleSource<P extends PathHandle, S extends StepHan
     public PathHandleGraphTripleSource(PathHandleGraphSail<P, S, N, E> sail) {
         this.vf = new HandleGraphValueFactory<>(sail);
         this.statementProviders = List.of(
+                new StepPositionStatementProvider<>(sail, vf),
                 new NodeRelatedStatementProvider<>(sail, vf),
                 new StepRelatedStatementProvider<>(sail, vf),
-                new StepPositionStatementProvider<>(sail, vf),
                 new PathRelatedStatementProvider<>(sail, vf));
     }
 

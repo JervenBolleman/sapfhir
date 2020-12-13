@@ -21,6 +21,7 @@ package swiss.sib.swissprot.sapfhir.values;
 import io.github.vgteam.handlegraph4j.PathHandle;
 import io.github.vgteam.handlegraph4j.StepHandle;
 import org.eclipse.rdf4j.model.IRI;
+import swiss.sib.swissprot.sapfhir.sparql.PathHandleGraphSail;
 
 /**
  *
@@ -28,11 +29,42 @@ import org.eclipse.rdf4j.model.IRI;
  * @param <P> the type of PathHandle
  * @param <S> the type of StepHandle
  */
-public interface StepPositionIRI<P extends PathHandle, S extends StepHandle> extends IRI {
+public abstract class StepPositionIRI<P extends PathHandle, S extends StepHandle> implements IRI {
 
+    private static final int POSITION_NOT_SET = -404;
     public static final String POSITION = "/position/";
+    protected final long position;
+    protected final P path;
+    protected final long rank;
+    protected final PathHandleGraphSail<P, S, ?, ?> graph;
 
-    public P path();
+    protected StepPositionIRI(P path, long rank, PathHandleGraphSail<P, S, ?, ?> graph) {
+        this.position = POSITION_NOT_SET;
+        this.path = path;
+        this.rank = rank;
+        this.graph = graph;
+    }
 
-    public long rank();
+    protected StepPositionIRI(long position, P path, long rank, PathHandleGraphSail<P, S, ?, ?> graph) {
+        this.position = position;
+        this.path = path;
+        this.rank = rank;
+        this.graph = graph;
+    }
+
+    public P path() {
+        return path;
+    }
+
+    public long rank() {
+        return rank;
+    }
+
+    protected boolean hasCachedPosition() {
+        return position != POSITION_NOT_SET;
+    }
+
+    public abstract long getEndPosition();
+
+    public abstract long getBeginPosition();
 }

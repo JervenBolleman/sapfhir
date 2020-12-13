@@ -24,6 +24,10 @@ import io.github.vgteam.handlegraph4j.PathGraph;
 import io.github.vgteam.handlegraph4j.PathHandle;
 import io.github.vgteam.handlegraph4j.StepHandle;
 import io.github.vgteam.handlegraph4j.iterators.AutoClosedIterator;
+import static io.github.vgteam.handlegraph4j.iterators.AutoClosedIterator.empty;
+import static io.github.vgteam.handlegraph4j.iterators.AutoClosedIterator.flatMap;
+import static io.github.vgteam.handlegraph4j.iterators.AutoClosedIterator.map;
+import static io.github.vgteam.handlegraph4j.iterators.AutoClosedIterator.of;
 import swiss.sib.swissprot.sapfhir.sparql.PathHandleGraphSail;
 import static swiss.sib.swissprot.sapfhir.statements.StatementProvider.filter;
 import swiss.sib.swissprot.sapfhir.values.HandleGraphValueFactory;
@@ -31,8 +35,6 @@ import swiss.sib.swissprot.sapfhir.values.PathIRI;
 import swiss.sib.swissprot.sapfhir.values.StepBeginPositionIRI;
 import swiss.sib.swissprot.sapfhir.values.StepEndPositionIRI;
 import java.util.Set;
-import java.util.function.Function;
-import java.util.stream.Stream;
 import org.eclipse.rdf4j.model.BNode;
 import org.eclipse.rdf4j.model.IRI;
 import org.eclipse.rdf4j.model.Literal;
@@ -97,18 +99,14 @@ public class StepPositionStatementProvider<P extends PathHandle, S extends StepH
             IRI predicate,
             Value object) {
         if (subject == null && (object == null || !(object instanceof BNode))) {
-            AutoClosedIterator<S> steps = sail.pathGraph().steps();
-            AutoClosedIterator<AutoClosedIterator<StepPositionIRI>> map = AutoClosedIterator.map(steps, s -> {
-                P path = sail.pathGraph().pathOfStep(s);
-                long rank = sail.pathGraph().rankOfStep(s);
-                var b = new StepBeginPositionIRI<>(path, rank, sail);
-                var e = new StepEndPositionIRI<>(path, rank, sail);
-                AutoClosedIterator<StepPositionIRI> of = AutoClosedIterator.<StepPositionIRI>of(b, e);
-                return of;
-            });
-            AutoClosedIterator<StepPositionIRI> flattened = AutoClosedIterator.flatMap(map);
-            var known = AutoClosedIterator.map(flattened, i -> knownSubject(i, predicate, object));
-            return AutoClosedIterator.flatMap(known);
+            var pg = sail.pathGraph();
+            var paths = pg.paths();
+            if (!paths.hasNext()) {
+                return empty();
+            }
+            var flattened = flatMap(new PositionMaintainingStepIRIGenerator(paths, pg));
+            var known = map(flattened, i -> knownSubject(i, predicate, object));
+            return flatMap(known);
         } else if (subject instanceof IRI) {
             return knownSubject((IRI) subject, predicate, object);
         } else {
@@ -131,12 +129,12 @@ public class StepPositionStatementProvider<P extends PathHandle, S extends StepH
             return knownSubjectPositionStatements(object, stepSubject);
         } else if (predicate == null) {
             var typeStatement = knownSubjectTypeStatement(object, stepSubject);
-            AutoClosedIterator<AutoClosedIterator<Statement>> of = AutoClosedIterator.of(typeStatement,
+            var all = AutoClosedIterator.of(typeStatement,
                     knownSubjectReferenceStatements(object, stepSubject),
                     knownSubjectPositionStatements(object, stepSubject));
-            return AutoClosedIterator.flatMap(of);
+            return flatMap(all);
         } else {
-            return AutoClosedIterator.empty();
+            return empty();
         }
     }
 
@@ -173,25 +171,17 @@ public class StepPositionStatementProvider<P extends PathHandle, S extends StepH
         }
         AutoClosedIterator<Statement> stream;
         if (subject instanceof StepBeginPositionIRI) {
-            S step = stepFromIri(subject);
-            long position = sail.pathGraph().beginPositionOfStep(step);
+            long position = ((StepBeginPositionIRI) subject).getBeginPosition();
             var l = vf.createLiteral(position);
             stream = AutoClosedIterator.of(vf.createStatement(subject, FALDO.position, l));
         } else if (subject instanceof StepEndPositionIRI) {
-            S step = stepFromIri(subject);
-            long position = sail.pathGraph().endPositionOfStep(step);
+            long position = ((StepEndPositionIRI) subject).getEndPosition();
             var l = vf.createLiteral(position);
             stream = AutoClosedIterator.of(vf.createStatement(subject, FALDO.position, l));
         } else {
             return AutoClosedIterator.empty();
         }
         return filter(object, stream);
-    }
-
-    private S stepFromIri(StepPositionIRI<P, S> subjet) {
-        PathGraph<P, S, N, E> pathGraph = sail.pathGraph();
-        S step = pathGraph.stepByRankAndPath(subjet.path(), subjet.rank());
-        return step;
     }
 
     private StepPositionIRI<P, S> beginOrEndIriFromIri(IRI iri) {
@@ -236,4 +226,55 @@ public class StepPositionStatementProvider<P extends PathHandle, S extends StepH
         return null;
     }
 
+    private class PositionMaintainingStepIRIGenerator implements AutoClosedIterator<AutoClosedIterator<StepPositionIRI<P, S>>> {
+
+        private final AutoClosedIterator<P> paths;
+        private final PathGraph<P, S, N, E> pg;
+        P path;
+        AutoClosedIterator<S> steps;
+        long beginPosition = 0;
+        long rank = 0;
+
+        public PositionMaintainingStepIRIGenerator(AutoClosedIterator<P> paths, PathGraph<P, S, N, E> pg) {
+            this.paths = paths;
+            this.pg = pg;
+            this.path = paths.next();
+            this.steps = pg.stepsOf(path);
+        }
+
+        @Override
+        public void close() {
+            steps.close();
+            paths.close();
+        }
+
+        @Override
+        public boolean hasNext() {
+            if (steps.hasNext()) {
+                return true;
+            }
+            while (paths.hasNext()) {
+                path = paths.next();
+                steps.close();
+                steps = pg.stepsOf(path);
+                if (steps.hasNext()) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        @Override
+        public AutoClosedIterator<StepPositionIRI<P, S>> next() {
+            S s = steps.next();
+            int seqln = pg.sequenceOf(pg.nodeOfStep(s)).length();
+
+            var b = new StepBeginPositionIRI<>(path, rank, sail, beginPosition);
+            long endPosition = beginPosition + seqln;
+            var e = new StepEndPositionIRI<>(path, rank, sail, endPosition);
+            beginPosition = endPosition + 1;
+            rank++;
+            return of(b, e);
+        }
+    }
 }

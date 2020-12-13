@@ -20,10 +20,14 @@ package swiss.sib.swissprot.sapfhir.statements;
 import static io.github.vgteam.handlegraph4j.iterators.AutoClosedIterator.map;
 import static io.github.vgteam.handlegraph4j.iterators.AutoClosedIterator.flatMap;
 import static io.github.vgteam.handlegraph4j.iterators.AutoClosedIterator.from;
+import static io.github.vgteam.handlegraph4j.iterators.AutoClosedIterator.of;
+import static io.github.vgteam.handlegraph4j.iterators.AutoClosedIterator.empty;
 
 import static swiss.sib.swissprot.sapfhir.statements.StatementProvider.nodeIriFromIRI;
 import io.github.vgteam.handlegraph4j.EdgeHandle;
 import io.github.vgteam.handlegraph4j.NodeHandle;
+import io.github.vgteam.handlegraph4j.NodeSequence;
+import io.github.vgteam.handlegraph4j.PathGraph;
 import io.github.vgteam.handlegraph4j.PathHandle;
 import io.github.vgteam.handlegraph4j.StepHandle;
 import io.github.vgteam.handlegraph4j.iterators.AutoClosedIterator;
@@ -34,10 +38,10 @@ import swiss.sib.swissprot.sapfhir.values.HandleGraphValueFactory;
 import swiss.sib.swissprot.sapfhir.values.NodeIRI;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
-import java.util.Iterator;
 import java.util.Objects;
 import java.util.Set;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import org.eclipse.rdf4j.model.BNode;
 import org.eclipse.rdf4j.model.IRI;
 import org.eclipse.rdf4j.model.Literal;
@@ -47,6 +51,7 @@ import org.eclipse.rdf4j.model.Value;
 import org.eclipse.rdf4j.model.vocabulary.RDF;
 import org.eclipse.rdf4j.model.vocabulary.XSD;
 import swiss.sib.swissprot.handlegraph4jrdf.VG;
+import swiss.sib.swissprot.sapfhir.values.SequenceLiteral;
 
 /**
  *
@@ -126,17 +131,17 @@ public class NodeRelatedStatementProvider<P extends PathHandle, S extends StepHa
     }
 
     private AutoClosedIterator<Statement> generateTriplesForAllNodes(IRI predicate, Value object) {
-        AutoClosedIterator<N> nodes1 = sail.pathGraph().nodes();
+        var nodeWithSequence = sail.pathGraph().nodesWithTheirSequence();
 
         //All nodes
-        var to = map(nodes1, (n) -> nodeToTriples(n, predicate, object));
+        var to = map(nodeWithSequence, (n) -> nodeSequenceToTriples(n, predicate, object));
         var nodes = flatMap(to);
         if (predicate == null || linkPredicates.contains(predicate)) {
             var edges = sail.pathGraph().edges();
             var edgeStatements = edgesToStatements(predicate, edges);
-            var i = AutoClosedIterator.of(nodes, edgeStatements);
-            var m = AutoClosedIterator.map(i, AutoClosedIterator::from);
-            return AutoClosedIterator.flatMap(m);
+            var i = of(nodes, edgeStatements);
+            var m = map(i, AutoClosedIterator::from);
+            return flatMap(m);
 //            return Stream.concat(nodes, edgeStatements);
         }
         return nodes;
@@ -151,11 +156,8 @@ public class NodeRelatedStatementProvider<P extends PathHandle, S extends StepHa
                 || object == null)) {
             NodeIRI nodeObject = nodeIriFromIRI((IRI) object, sail);
             var linksForNode = linksForNode(node, predicate, nodeObject);
-            var ai = Arrays.asList(typeValue, linksForNode)
-                    .iterator();
-            var m = AutoClosedIterator.map(ai, AutoClosedIterator::from);
-            var i = AutoClosedIterator.flatMap(m);
-            return from(i);
+            var typesAndLinks = of(typeValue, linksForNode);
+            return flatMap(typesAndLinks);
         }
         return typeValue;
     }
@@ -175,25 +177,39 @@ public class NodeRelatedStatementProvider<P extends PathHandle, S extends StepHa
                 return flatMap(map);
             }
         }
-        return AutoClosedIterator.empty();
+        return empty();
     }
 
+    
+    private AutoClosedIterator<Statement> nodeSequenceToTriples(NodeSequence<N> ns, IRI predicate, Value object) {
+        Statement[] statements = new Statement[2];
+        NodeIRI<N> nodeSubject = new NodeIRI<>(sail.pathGraph().asLong(ns.node()), sail);
+        if ((RDF.TYPE.equals(predicate) || predicate == null) && object == null) {
+            statements[0] = nodeTypeStatement(nodeSubject);
+        }
+        if ((RDF.VALUE.equals(predicate) || predicate == null)) {
+            Literal sequence = new SequenceLiteral(ns.sequence());
+            Statement nodeValueStatement = vf.createStatement(nodeSubject, RDF.VALUE, sequence);
+            statements[1] = nodeValueStatement;
+        }
+        var i = of(statements[0],statements[1]);
+        var f = AutoClosedIterator.filter(i, Objects::nonNull);
+        return StatementProvider.filter(object, f);
+    }
+    
     private AutoClosedIterator<Statement> nodeToTriples(N node, IRI predicate, Value object) {
         Statement[] statements = new Statement[2];
         NodeIRI<N> nodeSubject = new NodeIRI<>(sail.pathGraph().asLong(node), sail);
-        if ((RDF.TYPE.equals(predicate) || predicate == null) && object == null || VG.Node.equals(object)) {
+        if ((RDF.TYPE.equals(predicate) || predicate == null)) {
             statements[0] = nodeTypeStatement(nodeSubject);
         }
         if ((RDF.VALUE.equals(predicate) || predicate == null)) {
             Literal sequence = vf.createSequenceLiteral(node, sail.pathGraph());
-            if (object == null || sequence.equals(object)) {
-                Statement nodeValueStatement = vf.createStatement(nodeSubject, RDF.VALUE, sequence);
-                statements[1] = nodeValueStatement;
-            }
+            statements[1] = vf.createStatement(nodeSubject, RDF.VALUE, sequence);
         }
-        Iterator<Statement> iterator = Arrays.asList(statements).iterator();
-        var i = from(iterator);
-        return AutoClosedIterator.filter(i, Objects::nonNull);
+        var i = of(statements[0],statements[1]);
+        var f = AutoClosedIterator.filter(i, Objects::nonNull);
+        return StatementProvider.filter(object,f);
     }
 
     private Statement nodeTypeStatement(NodeIRI nodeSubject) {
@@ -201,9 +217,11 @@ public class NodeRelatedStatementProvider<P extends PathHandle, S extends StepHa
     }
 
     private AutoClosedIterator<Statement> linksForNode(N node, IRI predicate, NodeIRI object) {
-        AutoClosedIterator<E> asStream = sail.pathGraph().followEdgesToWardsTheLeft(node);
+        PathGraph<P, S, N, E> pg = sail.pathGraph();
+        AutoClosedIterator<E> asStream = pg.followEdgesToWardsTheLeft(node);
         if (object != null) {
-            asStream = AutoClosedIterator.filter(asStream, e -> sail.pathGraph().asLong(e.right()) == object.id());
+            Predicate<E> rightMatches = e -> pg.asLong(e.right()) == object.id();
+            asStream = AutoClosedIterator.filter(asStream, rightMatches);
         }
         return edgesToStatements(predicate, asStream);
     }
