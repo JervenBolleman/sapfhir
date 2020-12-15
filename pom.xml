@@ -26,7 +26,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.source>11</maven.compiler.source>
         <maven.compiler.target>11</maven.compiler.target>
-        <eclipse.rdf4j.version>3.4.5-SNAPSHOT</eclipse.rdf4j.version>
+        <eclipse.rdf4j.version>3.5.0</eclipse.rdf4j.version>
     </properties>
     
     <dependencies>
@@ -75,7 +75,7 @@
         </dependency>
         <dependency>
             <groupId>${project.groupId}</groupId>
-            <artifactId>handlegraph4jRDF</artifactId>
+            <artifactId>handlegraph4j-rdf</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
@@ -105,4 +105,28 @@
     </dependencies>
     <name>sapfhir</name>
     <description>Acess DNA variation graph handlegraphs as SPARQL endpoints.</description>
+
+     <distributionManagement>
+        <repository>
+            <id>github</id>
+            <name>GitHub Jerven Bolleman Apache Maven Packages</name>
+            <url>https://maven.pkg.github.com/JervenBolleman/sapfhir</url>
+        </repository>
+    </distributionManagement>
+
+    <repositories>
+        <repository>
+          <id>central</id>
+          <url>https://repo1.maven.org/maven2</url>
+          <releases><enabled>true</enabled></releases>
+          <snapshots><enabled>true</enabled></snapshots>
+        </repository>
+        <repository>
+          <id>github</id>
+          <name>GitHub Jerven Bolleman handlegraph4j Apache Maven Packages</name>
+          <url>https://maven.pkg.github.com/jervenbolleman/handlegraph4jRDF</url>
+          <releases><enabled>true</enabled></releases>
+          <snapshots><enabled>true</enabled></snapshots>
+        </repository>
+      </repositories>
 </project>
