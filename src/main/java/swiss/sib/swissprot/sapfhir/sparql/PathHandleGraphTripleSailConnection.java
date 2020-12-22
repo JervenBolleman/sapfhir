@@ -22,6 +22,7 @@ import io.github.vgteam.handlegraph4j.EdgeHandle;
 import io.github.vgteam.handlegraph4j.NodeHandle;
 import io.github.vgteam.handlegraph4j.PathHandle;
 import io.github.vgteam.handlegraph4j.StepHandle;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import org.eclipse.rdf4j.common.iteration.CloseableIteration;
@@ -38,11 +39,20 @@ import org.eclipse.rdf4j.query.BindingSet;
 import org.eclipse.rdf4j.query.Dataset;
 import org.eclipse.rdf4j.query.QueryEvaluationException;
 import org.eclipse.rdf4j.query.algebra.TupleExpr;
-import org.eclipse.rdf4j.query.algebra.evaluation.EvaluationStrategy;
+import org.eclipse.rdf4j.query.algebra.evaluation.QueryOptimizer;
+import org.eclipse.rdf4j.query.algebra.evaluation.QueryOptimizerPipeline;
 import org.eclipse.rdf4j.query.algebra.evaluation.impl.BindingAssigner;
+import org.eclipse.rdf4j.query.algebra.evaluation.impl.CompareOptimizer;
+import org.eclipse.rdf4j.query.algebra.evaluation.impl.ConjunctiveConstraintSplitter;
+import org.eclipse.rdf4j.query.algebra.evaluation.impl.ConstantOptimizer;
+import org.eclipse.rdf4j.query.algebra.evaluation.impl.DisjunctiveConstraintOptimizer;
 import org.eclipse.rdf4j.query.algebra.evaluation.impl.FilterOptimizer;
+import org.eclipse.rdf4j.query.algebra.evaluation.impl.IterativeEvaluationOptimizer;
+import org.eclipse.rdf4j.query.algebra.evaluation.impl.QueryJoinOptimizer;
+import org.eclipse.rdf4j.query.algebra.evaluation.impl.QueryModelNormalizer;
+import org.eclipse.rdf4j.query.algebra.evaluation.impl.RegexAsStringFunctionOptimizer;
+import org.eclipse.rdf4j.query.algebra.evaluation.impl.SameTermFilterOptimizer;
 import org.eclipse.rdf4j.query.algebra.evaluation.impl.StrictEvaluationStrategy;
-import org.eclipse.rdf4j.query.impl.EmptyBindingSet;
 import org.eclipse.rdf4j.repository.sparql.federation.SPARQLServiceResolver;
 import org.eclipse.rdf4j.sail.SailException;
 import org.eclipse.rdf4j.sail.helpers.AbstractSailConnection;
@@ -74,19 +84,37 @@ public class PathHandleGraphTripleSailConnection<P extends PathHandle, S extends
     }
 
     @Override
-    protected CloseableIteration<? extends BindingSet, QueryEvaluationException> evaluateInternal(TupleExpr tupleExpr, Dataset dataset, BindingSet bindings, boolean includeInferred) throws SailException {
+    protected CloseableIteration<? extends BindingSet, QueryEvaluationException> evaluateInternal(TupleExpr tupleExpr,
+            Dataset dataset,
+            BindingSet bindings,
+            boolean includeInferred) throws SailException {
         try {
 
-            PathHandleGraphTripleSource<P, S, N, E> tripleSource = new PathHandleGraphTripleSource<>(phg);
-            EvaluationStrategy strategy = new StrictEvaluationStrategy(tripleSource, fd);
-            tupleExpr = tupleExpr.clone();
-            new BindingAssigner().optimize(tupleExpr, dataset, bindings);
-
-            new FilterOptimizer().optimize(tupleExpr, dataset, bindings);
-            return strategy.evaluate(tupleExpr, EmptyBindingSet.getInstance());
+            var tripleSource = tripleSource();
+            var strategy = evalutationStrategy(tripleSource);
+            tupleExpr = optimize(tripleSource, strategy, tupleExpr, bindings);
+            return strategy.evaluate(tupleExpr, bindings);
         } catch (QueryEvaluationException e) {
             throw new SailException(e);
         }
+    }
+
+    StrictEvaluationStrategy evalutationStrategy(PathHandleGraphTripleSource<P, S, N, E> tripleSource) {
+        return new StrictEvaluationStrategy(tripleSource, fd);
+    }
+
+    PathHandleGraphTripleSource<P, S, N, E> tripleSource() {
+        var tripleSource = new PathHandleGraphTripleSource<>(phg);
+        return tripleSource;
+    }
+
+    TupleExpr optimize(PathHandleGraphTripleSource<P, S, N, E> tripleSource, StrictEvaluationStrategy strategy, TupleExpr tupleExpr, BindingSet bindings) {
+        var evStats = new PathHandleEvaluationStatistics<>(tripleSource);
+        var queryOptimizer = new PathHandleQueryOptimizerPipeline<>(strategy,
+                tripleSource, evStats);
+        strategy.setOptimizerPipeline(queryOptimizer);
+        var optimizedTupleExpr = strategy.optimize(tupleExpr, evStats, bindings);
+        return optimizedTupleExpr;
     }
 
     @Override
@@ -168,6 +196,40 @@ public class PathHandleGraphTripleSailConnection<P extends PathHandle, S extends
     @Override
     protected void clearNamespacesInternal() throws SailException {
         throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+    }
+
+    private static class PathHandleQueryOptimizerPipeline<P extends PathHandle, S extends StepHandle, N extends NodeHandle, E extends EdgeHandle<N>> implements QueryOptimizerPipeline {
+
+        private final PathHandleGraphTripleSource<P, S, N, E> ts;
+        private final StrictEvaluationStrategy strategy;
+        private final PathHandleEvaluationStatistics ev;
+
+        public PathHandleQueryOptimizerPipeline(
+                StrictEvaluationStrategy strategy,
+                PathHandleGraphTripleSource<P, S, N, E> ts,
+                PathHandleEvaluationStatistics ev) {
+            this.ts = ts;
+            this.strategy = strategy;
+            this.ev = ev;
+        }
+
+        @Override
+        public Iterable<QueryOptimizer> getOptimizers() {
+            return Arrays.asList(
+                    new BindingAssigner(),
+                    new ConstantOptimizer(strategy),
+                    new RegexAsStringFunctionOptimizer(ts.getValueFactory()),
+                    new CompareOptimizer(),
+                    new ConjunctiveConstraintSplitter(),
+                    new DisjunctiveConstraintOptimizer(),
+                    new SameTermFilterOptimizer(),
+                    new QueryModelNormalizer(),
+                    new QueryJoinOptimizer(ev),
+                    new IterativeEvaluationOptimizer(),
+                    new FilterOptimizer()
+            );
+        }
+
     }
 
 }

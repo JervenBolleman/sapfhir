@@ -98,4 +98,33 @@ public interface StatementProvider {
             return AutoClosedIterator.filter(stream, s -> object.equals(s.getObject()));
         }
     }
+
+    public default double estimateCardinality(Resource subj, IRI predicate, Value obj) {
+        double predEst = estimatePredicateCardinality(predicate);
+        double subEst = estimateSubjectCardinality(subj);
+        double objEst = estimateObjectCardinality(obj);
+        return Math.min(Math.min(predEst, subEst), objEst);
+    }
+
+    public double estimatePredicateCardinality(IRI predicate);
+
+    public default double estimateSubjectCardinality(Resource subj) {
+        if (subj == null) {
+            return Double.MAX_VALUE / 4;
+        } else if (subjectMightReturnValues(subj)) {
+            return 10;
+        } else {
+            return 0;
+        }
+    }
+
+    public default double estimateObjectCardinality(Value obj) {
+        if (obj == null) {
+            return Double.MAX_VALUE / 2;
+        } else if (objectMightReturnValues(obj)) {
+            return 10;
+        } else {
+            return 0;
+        }
+    }
 }

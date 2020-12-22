@@ -34,6 +34,11 @@ import org.eclipse.rdf4j.query.MalformedQueryException;
 import org.eclipse.rdf4j.query.QueryLanguage;
 import org.eclipse.rdf4j.query.TupleQuery;
 import org.eclipse.rdf4j.query.TupleQueryResult;
+import org.eclipse.rdf4j.query.algebra.TupleExpr;
+import org.eclipse.rdf4j.query.impl.EmptyBindingSet;
+import org.eclipse.rdf4j.query.parser.ParsedQuery;
+import org.eclipse.rdf4j.query.parser.QueryParser;
+import org.eclipse.rdf4j.query.parser.sparql.SPARQLParser;
 import org.eclipse.rdf4j.repository.RepositoryConnection;
 import org.eclipse.rdf4j.repository.RepositoryException;
 import org.eclipse.rdf4j.repository.sail.SailRepository;
@@ -119,7 +124,7 @@ public class PathHandleGraphSailTest {
     public void testGetConnectionInternal() {
         PathHandleGraphSail instance = new PathHandleGraphSail(spg, EXAMPLE_BASE);
 
-        try ( SailConnection result = instance.getConnectionInternal()) {
+        try (SailConnection result = instance.getConnectionInternal()) {
             assertTrue(result instanceof PathHandleGraphTripleSailConnection);
             assertFalse(result.isActive());
         }
@@ -243,7 +248,7 @@ public class PathHandleGraphSailTest {
             assertFalse(r.hasNext());
         };
         String nodes = "SELECT (COUNT(?node) AS ?nodes) WHERE {?node a vg:Node}";
-        try ( RepositoryConnection connection = instance.getConnection()) {
+        try (RepositoryConnection connection = instance.getConnection()) {
             evaluate(nodes, connection, test);
         }
     }
@@ -267,7 +272,7 @@ public class PathHandleGraphSailTest {
         String all = "SELECT ?s ?p ?o \n"
                 + "WHERE {?s ?p ?o .\n"
                 + "} ";
-        try ( RepositoryConnection connection = instance.getConnection()) {
+        try (RepositoryConnection connection = instance.getConnection()) {
             evaluate(all, connection, test);
         }
         Consumer<TupleQueryResult> test2 = (r) -> {
@@ -281,7 +286,7 @@ public class PathHandleGraphSailTest {
         String countall = "SELECT (COUNT(?s) AS ?c)\n"
                 + "WHERE {?s ?p ?o .\n"
                 + "} ";
-        try ( RepositoryConnection connection = instance.getConnection()) {
+        try (RepositoryConnection connection = instance.getConnection()) {
             evaluate(countall, connection, test2);
         }
     }
@@ -308,14 +313,14 @@ public class PathHandleGraphSailTest {
                 + "WHERE {?node a vg:Node .\n"
                 + "BIND(xsd:int(SUBSTR(STR(?node),28)) AS ?id)\n"
                 + "} ORDER BY ?id";
-        try ( RepositoryConnection connection = instance.getConnection()) {
+        try (RepositoryConnection connection = instance.getConnection()) {
             evaluate(select_node_WHERE_node_a_vgNode, connection, test);
         }
     }
 
     public void evaluate(String query, RepositoryConnection conn, Consumer<TupleQueryResult> evaluate) {
         TupleQuery prepareTupleQuery = prepareQuery(conn, query);
-        try ( TupleQueryResult result = prepareTupleQuery.evaluate()) {
+        try (TupleQueryResult result = prepareTupleQuery.evaluate()) {
             evaluate.accept(result);
         }
     }
@@ -334,7 +339,7 @@ public class PathHandleGraphSailTest {
             }
             assertFalse(r.hasNext());
         };
-        try ( RepositoryConnection connection = instance.getConnection()) {
+        try (RepositoryConnection connection = instance.getConnection()) {
 
             evaluate(allSteps, connection, test);
 
@@ -344,27 +349,24 @@ public class PathHandleGraphSailTest {
     }
 
     @Test
-    public void testValueQueries() {
-        SailRepository instance = getSail();
-        String allSequences = "SELECT ?value WHERE {?node rdf:value ?value}";
-        String allNodesHaveASequence = "SELECT ?value WHERE {?node a vg:Node ; rdf:value ?value}";
+    public void testQueryReorderingValueQueries() {
+        PathHandleGraphSail pghs = new PathHandleGraphSail(spg, EXAMPLE_BASE);
+        String prefixes = "PREFIX faldo:<" + FALDO.NAMESPACE + "> "
+                + "PREFIX vg:<" + VG.NAMESPACE + "> ";
 
-        Consumer<TupleQueryResult> test = r -> {
-            for (int i = 0; i < spg.nodeCount(); i++) {
-                assertTrue(r.hasNext(), "at i:" + i);
-                BindingSet next = r.next();
-                assertNotNull(next);
-                var value = next.getBinding("value").getValue();
-                assertTrue(value instanceof Literal);
-            }
-            assertFalse(r.hasNext());
-        };
-        try ( RepositoryConnection connection = instance.getConnection()) {
+        String allReorder = prefixes + "SELECT ?value WHERE {?node rdf:value ?value ; a vg:Node }";
 
-            evaluate(allSequences, connection, test);
+        try (var connection = pghs.getConnectionInternal()) {
+            PathHandleGraphTripleSource tripleSource = connection.tripleSource();
 
-            evaluate(allNodesHaveASequence, connection, test);
-
+            ParsedQuery toReorder = new SPARQLParser().parseQuery(allReorder, EXAMPLE_BASE);
+            TupleExpr optimized = connection.optimize(tripleSource,
+                    connection.evalutationStrategy(tripleSource),
+                    toReorder.getTupleExpr(),
+                    new EmptyBindingSet());
+            
+            //TODO: actually test the optimizer did the right thing.
+            assertNotEquals(toReorder, optimized);
         }
     }
 
@@ -382,7 +384,7 @@ public class PathHandleGraphSailTest {
                 in.incrementAndGet();
             }
         };
-        try ( RepositoryConnection connection = instance.getConnection()) {
+        try (RepositoryConnection connection = instance.getConnection()) {
 
             evaluate(all, connection, test);
         }
@@ -399,7 +401,7 @@ public class PathHandleGraphSailTest {
             assertEquals(in.get(), l.intValue());
             assertFalse(r.hasNext());
         };
-        try ( RepositoryConnection connection = instance.getConnection()) {
+        try (RepositoryConnection connection = instance.getConnection()) {
 
             evaluate(countAll, connection, test2);
         }
@@ -434,7 +436,7 @@ public class PathHandleGraphSailTest {
         };
         String beginIris = "SELECT ?begin WHERE {?step a vg:Step ; faldo:begin ?begin}";
         String beginPositions = "SELECT ?begin WHERE {?step a vg:Step ; faldo:begin ?pos . ?pos faldo:position ?begin}";
-        try ( RepositoryConnection connection = instance.getConnection()) {
+        try (RepositoryConnection connection = instance.getConnection()) {
 
             evaluate(beginIris, connection, test);
             evaluate(beginPositions, connection, test2);
@@ -454,7 +456,7 @@ public class PathHandleGraphSailTest {
             }
             assertFalse(r.hasNext());
         };
-        try ( RepositoryConnection connection = instance.getConnection()) {
+        try (RepositoryConnection connection = instance.getConnection()) {
 
             evaluate(paths, connection, test);
             evaluate(pathLabels, connection, test);
@@ -473,5 +475,32 @@ public class PathHandleGraphSailTest {
         return connection.prepareTupleQuery(QueryLanguage.SPARQL,
                 "PREFIX faldo:<" + FALDO.NAMESPACE + "> "
                 + "PREFIX vg:<" + VG.NAMESPACE + "> " + query);
+    }
+
+    @Test
+    public void testNodeSequenceQuery() {
+        SailRepository instance = getSail();
+
+        Consumer<TupleQueryResult> test = (r) -> {
+            for (int i = 0; i < spg.nodeCount(); i++) {
+                assertTrue(r.hasNext(), "at i:" + i);
+                BindingSet next = r.next();
+                assertNotNull(next);
+                IRI node = (IRI) next.getBinding("node").getValue();
+                assertNotNull(node);
+                Literal binding = (Literal) next.getBinding("sequence").getValue();
+                assertNotNull(binding);
+                assertTrue(binding.stringValue().length() >= 1);
+            }
+            assertFalse(r.hasNext());
+        };
+
+        String select_node_WHERE_node_a_vgNode = "SELECT ?node ?sequence \n"
+                + "WHERE {?node a vg:Node .\n"
+                + "?node rdf:value ?sequence .\n"
+                + "}";
+        try (RepositoryConnection connection = instance.getConnection()) {
+            evaluate(select_node_WHERE_node_a_vgNode, connection, test);
+        }
     }
 }

@@ -23,6 +23,10 @@ import io.github.vgteam.handlegraph4j.NodeHandle;
 import io.github.vgteam.handlegraph4j.PathHandle;
 import io.github.vgteam.handlegraph4j.StepHandle;
 import io.github.vgteam.handlegraph4j.iterators.AutoClosedIterator;
+import static io.github.vgteam.handlegraph4j.iterators.AutoClosedIterator.filter;
+import static io.github.vgteam.handlegraph4j.iterators.AutoClosedIterator.flatMap;
+import static io.github.vgteam.handlegraph4j.iterators.AutoClosedIterator.from;
+import static io.github.vgteam.handlegraph4j.iterators.AutoClosedIterator.map;
 import swiss.sib.swissprot.sapfhir.statements.NodeRelatedStatementProvider;
 import swiss.sib.swissprot.sapfhir.statements.PathRelatedStatementProvider;
 import swiss.sib.swissprot.sapfhir.statements.StatementProvider;
@@ -30,7 +34,6 @@ import swiss.sib.swissprot.sapfhir.statements.StepPositionStatementProvider;
 import swiss.sib.swissprot.sapfhir.statements.StepRelatedStatementProvider;
 import swiss.sib.swissprot.sapfhir.values.HandleGraphValueFactory;
 import java.util.List;
-import java.util.function.Function;
 import org.eclipse.rdf4j.common.iteration.CloseableIteration;
 import org.eclipse.rdf4j.common.iteration.EmptyIteration;
 import org.eclipse.rdf4j.model.BNode;
@@ -38,7 +41,6 @@ import org.eclipse.rdf4j.model.IRI;
 import org.eclipse.rdf4j.model.Resource;
 import org.eclipse.rdf4j.model.Statement;
 import org.eclipse.rdf4j.model.Value;
-import org.eclipse.rdf4j.model.ValueFactory;
 import org.eclipse.rdf4j.query.QueryEvaluationException;
 import org.eclipse.rdf4j.query.algebra.evaluation.TripleSource;
 
@@ -76,31 +78,40 @@ public class PathHandleGraphTripleSource<P extends PathHandle, S extends StepHan
         if (subject instanceof BNode || object instanceof BNode) {
             return new EmptyIteration<>();
         }
-        var iter = statementProviders.stream()
-                .filter((sp) -> sp.subjectMightReturnValues(subject)
-                && sp.predicateMightReturnValues(predicate)
-                && sp.objectMightReturnValues(object));
-        var from = AutoClosedIterator.from(iter);
-        Function<StatementProvider, AutoClosedIterator<Statement>> providerToStat
-                = p -> p.getStatements(subject, predicate, object);
-        var map = AutoClosedIterator.map(from, providerToStat);
-        AutoClosedIterator<Statement> stream = AutoClosedIterator.flatMap(map);
-        return new CloseableIterationFromStream(stream);
+        var from = from(statementProviders.iterator());
+        var subs = filter(from, sp -> sp.subjectMightReturnValues(subject));
+        var preds = filter(subs, sp -> sp.predicateMightReturnValues(predicate));
+        var obs = filter(preds, sp -> sp.objectMightReturnValues(object));
 
+        var generateStatements = map(obs, ps -> statements(ps, subject, predicate, object));
+        return new CloseableIterationFromAutoClosedIterator(flatMap(generateStatements));
+    }
+
+    private static AutoClosedIterator<Statement> statements(StatementProvider ps,
+            Resource subject, IRI predicate, Value object) {
+        return ps.getStatements(subject, predicate, object);
     }
 
     @Override
-    public ValueFactory getValueFactory() {
+    public HandleGraphValueFactory getValueFactory() {
         return vf;
     }
 
-    private static class CloseableIterationFromStream
+    public double estimateCardinality(Resource subj, IRI pred, Value obj) {
+        double estimate = 0;
+        for (StatementProvider sp : statementProviders) {
+            estimate = Math.max(estimate, sp.estimateCardinality(subj, pred, obj));
+        }
+        return estimate;
+    }
+
+    private static class CloseableIterationFromAutoClosedIterator
             implements CloseableIteration<Statement, QueryEvaluationException> {
 
         private final AutoClosedIterator<Statement> providedAsIter;
         private Statement last;
 
-        public CloseableIterationFromStream(AutoClosedIterator<Statement> providedAsIter) {
+        public CloseableIterationFromAutoClosedIterator(AutoClosedIterator<Statement> providedAsIter) {
             this.providedAsIter = providedAsIter;
         }
 
@@ -117,9 +128,7 @@ public class PathHandleGraphTripleSource<P extends PathHandle, S extends StepHan
         @Override
         public Statement next() throws QueryEvaluationException {
             Statement next = providedAsIter.next();
-            if (next == null) {
-                throw new NullPointerException("null after" + last);
-            }
+            assert next != null : "null after" + last;
             last = next;
             return next;
         }

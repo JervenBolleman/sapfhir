@@ -277,4 +277,13 @@ public class StepPositionStatementProvider<P extends PathHandle, S extends StepH
             return of(b, e);
         }
     }
+
+    @Override
+    public double estimatePredicateCardinality(IRI predicate) {
+        if (predicate == null || predicates.contains(predicate)) {
+            return sail.pathGraph().stepCount() * 2;
+        } else {
+            return 0;
+        }
+    }
 }

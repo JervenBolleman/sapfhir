@@ -53,11 +53,12 @@ public class PathHandleGraphSail<P extends PathHandle, S extends StepHandle, N e
 
     @Override
     protected void shutDownInternal() throws SailException {
-
+        
     }
 
     @Override
-    protected PathHandleGraphTripleSailConnection getConnectionInternal() throws SailException {
+    protected PathHandleGraphTripleSailConnection getConnectionInternal()
+            throws SailException {
         return new PathHandleGraphTripleSailConnection(this);
     }
 
@@ -67,7 +68,7 @@ public class PathHandleGraphSail<P extends PathHandle, S extends StepHandle, N e
     }
 
     @Override
-    public ValueFactory getValueFactory() {
+    public HandleGraphValueFactory getValueFactory() {
         return new HandleGraphValueFactory(this);
     }
 
@@ -86,7 +87,9 @@ public class PathHandleGraphSail<P extends PathHandle, S extends StepHandle, N e
 
     public boolean hasPathNameSpace(String namespace) {
         if (namespace.startsWith(base + PATH_IRI_PART)) {
-            return pathGraph.pathByName(namespace.substring(base.length() + PATH_IRI_PART.length())) != null;
+            String pathNamePart = namespace.substring(base.length()
+                    + PATH_IRI_PART.length());
+            return pathGraph.pathByName(pathNamePart) != null;
         } else if (mightBeHttpOrFtpIri(namespace)) {
             return pathGraph.pathByName(namespace) != null;
         } else {
@@ -108,13 +111,16 @@ public class PathHandleGraphSail<P extends PathHandle, S extends StepHandle, N e
             return false;
         }
     }
-    
-     public N nodeFromIriString(String possibleNodeIri) {
+
+    public N nodeFromIriString(String possibleNodeIri) {
         String nodeIriStart = base + NODE_IRI_PART;
         boolean looksLikeNodeIRI = possibleNodeIri.startsWith(nodeIriStart);
-        if (looksLikeNodeIRI && possibleNodeIri.length() > nodeIriStart.length()) {
+        int nodeIdStart = nodeIriStart.length();
+        if (looksLikeNodeIRI && possibleNodeIri.length() > nodeIdStart) {
             try {
-                return pathGraph.fromLong(Long.parseLong(possibleNodeIri.substring(nodeIriStart.length())));
+                String nodeIdPart = possibleNodeIri.substring(nodeIdStart);
+                long nodeId = Long.parseLong(nodeIdPart);
+                return pathGraph.fromLong(nodeId);
             } catch (NumberFormatException e) {
                 return null;
             }
@@ -122,8 +128,8 @@ public class PathHandleGraphSail<P extends PathHandle, S extends StepHandle, N e
             return null;
         }
     }
-     
-    public P pathFromIriString(String possiblePathIri){
+
+    public P pathFromIriString(String possiblePathIri) {
         if (possiblePathIri.startsWith(base + PATH_IRI_PART)) {
             return pathGraph.pathByName(possiblePathIri.substring(base.length() + PATH_IRI_PART.length()));
         } else if (mightBeHttpOrFtpIri(possiblePathIri)) {
@@ -148,14 +154,15 @@ public class PathHandleGraphSail<P extends PathHandle, S extends StepHandle, N e
         return extractStepFromKnownPathName(possibleStepIri);
     }
 
-    private S extractStepFromKnownPathName(String namespace) throws NumberFormatException {
+    private S extractStepFromKnownPathName(String namespace) {
         Pattern endsWithStepPattern = Pattern.compile(STEP_IRI_PART + "(\\d+)$");
         Matcher endPatternMatcher = endsWithStepPattern.matcher(namespace);
         try {
             if (mightBeHttpOrFtpIri(namespace) && endPatternMatcher.find(5)) {
                 String rankGroup = endPatternMatcher.group(1);
                 long rank = Long.parseLong(rankGroup);
-                String pathName = namespace.substring(0, namespace.length() - (rankGroup.length() + 6));
+                String pathName = namespace.substring(0, namespace.length()
+                        - (rankGroup.length() + 6));
                 P pathByName = pathGraph.pathByName(pathName);
                 if (pathByName != null) {
                     return pathGraph.stepByRankAndPath(pathByName, rank);
@@ -168,12 +175,16 @@ public class PathHandleGraphSail<P extends PathHandle, S extends StepHandle, N e
     }
 
     private static boolean mightBeHttpOrFtpIri(String namespace) {
-        return namespace.startsWith("https://") || namespace.startsWith("http://") || namespace.startsWith("ftp://");
+        return namespace.startsWith("https://")
+                || namespace.startsWith("http://")
+                || namespace.startsWith("ftp://");
     }
 
     private S extractStepFromBasicPathPattern(String namespace) {
 
-        Pattern standardPathNamePattern = Pattern.compile('^' + base + PATH_IRI_PART + "(.+)/" + STEP_IRI_PART + "(\\d+)");
+        Pattern standardPathNamePattern = Pattern.compile('^' + base
+                + PATH_IRI_PART + "(.+)/"
+                + STEP_IRI_PART + "(\\d+)");
         Matcher matcher = standardPathNamePattern.matcher(namespace);
         try {
             if (matcher.matches()) {

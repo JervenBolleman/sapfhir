@@ -224,4 +224,17 @@ public class StepRelatedStatementProvider<P extends PathHandle, S extends StepHa
         var stream = AutoClosedIterator.of(vf.createStatement(stepSubject, FALDO.begin, beginIRI));
         return filter(object, stream);
     }
+
+    @Override
+    public double estimatePredicateCardinality(IRI predicate) {
+        if (predicate == null) {
+            return sail.pathGraph().stepCount() * 5;
+        } else if (FALDO.begin.equals(predicate) || FALDO.end.equals(predicate)) {
+            return sail.pathGraph().stepCount() * 4;
+        } else if (stepAssociatedPredicates.contains(predicate)) {
+            return sail.pathGraph().stepCount();
+        } else {
+            return 0;
+        }
+    }
 }

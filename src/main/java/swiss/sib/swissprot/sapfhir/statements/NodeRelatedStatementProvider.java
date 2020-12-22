@@ -17,6 +17,7 @@
  * MA 02110-1301  USA
  */
 package swiss.sib.swissprot.sapfhir.statements;
+
 import static io.github.vgteam.handlegraph4j.iterators.AutoClosedIterator.map;
 import static io.github.vgteam.handlegraph4j.iterators.AutoClosedIterator.flatMap;
 import static io.github.vgteam.handlegraph4j.iterators.AutoClosedIterator.from;
@@ -180,7 +181,6 @@ public class NodeRelatedStatementProvider<P extends PathHandle, S extends StepHa
         return empty();
     }
 
-    
     private AutoClosedIterator<Statement> nodeSequenceToTriples(NodeSequence<N> ns, IRI predicate, Value object) {
         Statement[] statements = new Statement[2];
         NodeIRI<N> nodeSubject = new NodeIRI<>(sail.pathGraph().asLong(ns.node()), sail);
@@ -192,11 +192,11 @@ public class NodeRelatedStatementProvider<P extends PathHandle, S extends StepHa
             Statement nodeValueStatement = vf.createStatement(nodeSubject, RDF.VALUE, sequence);
             statements[1] = nodeValueStatement;
         }
-        var i = of(statements[0],statements[1]);
+        var i = of(statements[0], statements[1]);
         var f = AutoClosedIterator.filter(i, Objects::nonNull);
         return StatementProvider.filter(object, f);
     }
-    
+
     private AutoClosedIterator<Statement> nodeToTriples(N node, IRI predicate, Value object) {
         Statement[] statements = new Statement[2];
         NodeIRI<N> nodeSubject = new NodeIRI<>(sail.pathGraph().asLong(node), sail);
@@ -207,9 +207,9 @@ public class NodeRelatedStatementProvider<P extends PathHandle, S extends StepHa
             Literal sequence = vf.createSequenceLiteral(node, sail.pathGraph());
             statements[1] = vf.createStatement(nodeSubject, RDF.VALUE, sequence);
         }
-        var i = of(statements[0],statements[1]);
+        var i = of(statements[0], statements[1]);
         var f = AutoClosedIterator.filter(i, Objects::nonNull);
-        return StatementProvider.filter(object,f);
+        return StatementProvider.filter(object, f);
     }
 
     private Statement nodeTypeStatement(NodeIRI nodeSubject) {
@@ -287,4 +287,40 @@ public class NodeRelatedStatementProvider<P extends PathHandle, S extends StepHa
             return null;
         }
     }
+
+    @Override
+    public double estimatePredicateCardinality(IRI predicate) {
+        if (predicate == null) {
+            return sail.pathGraph().nodeCount()
+                    + sail.pathGraph().edgeCount();
+        } else if (RDF.VALUE.equals(predicate)) {
+            return 10_000; // We really prefer to go linear over all sequences
+        } else if (RDF.TYPE.equals(predicate)) {
+            return sail.pathGraph().nodeCount();
+        } else if (linkPredicates.contains(predicate)) {
+            return sail.pathGraph().edgeCount();
+        } else {
+            return 0;
+        }
+    }
+
+    @Override
+    public double estimateObjectCardinality(Value obj) {
+        if (obj == null || VG.Node.equals(obj)) {
+            return sail.pathGraph().nodeCount();
+        } else if (obj instanceof Literal) {
+            Literal lit = (Literal) obj;
+            if ((XSD.STRING.equals(lit.getDatatype()))) {
+                if (lit.stringValue().length() == 1) {
+                    // About 60% of sequences are length one, and
+                    // fast to retrieve.
+                    return sail.pathGraph().nodeCount() * 0.6;
+                } else {
+                    return sail.pathGraph().nodeCount() * 0.4;
+                }
+            };
+        }
+        return 0;
+    }
+
 }

@@ -126,4 +126,14 @@ public class PathRelatedStatementProvider<P extends PathHandle, S extends StepHa
         return filter(object, stream);
     }
 
+    @Override
+    public double estimatePredicateCardinality(IRI predicate) {
+        if (RDFS.LABEL.equals(predicate)) {
+            return sail.pathGraph().pathCount();
+        } else if (RDF.TYPE.equals(predicate)) {
+            return sail.pathGraph().pathCount();
+        } else {
+            return 0;
+        }
+    }
 }
