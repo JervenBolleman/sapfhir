@@ -48,7 +48,7 @@
         </dependency>
         <dependency>
             <groupId>org.eclipse.rdf4j</groupId>
-            <artifactId>rdf4j-runtime</artifactId>
+            <artifactId>rdf4j-sail-base</artifactId>
             <version>${eclipse.rdf4j.version}</version>
             <type>pom</type>
         </dependency>
