@@ -31,7 +31,8 @@ import swiss.sib.swissprot.sapfhir.sparql.PathHandleGraphSail;
  */
 public abstract class StepPositionIRI<P extends PathHandle, S extends StepHandle> implements IRI {
 
-    private static final int POSITION_NOT_SET = -404;
+	private static final long serialVersionUID = 1;
+	private static final int POSITION_NOT_SET = -404;
     public static final String POSITION = "/position/";
     protected final long position;
     protected final P path;

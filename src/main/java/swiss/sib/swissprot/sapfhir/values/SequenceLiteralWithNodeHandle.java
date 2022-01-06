@@ -21,6 +21,8 @@ package swiss.sib.swissprot.sapfhir.values;
 import io.github.vgteam.handlegraph4j.EdgeHandle;
 import io.github.vgteam.handlegraph4j.HandleGraph;
 import io.github.vgteam.handlegraph4j.NodeHandle;
+import io.github.vgteam.handlegraph4j.sequences.Sequence;
+
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.Optional;
@@ -36,6 +38,7 @@ import org.eclipse.rdf4j.model.vocabulary.XSD;
  * @param <N> the type of NodeHandle
  */
 public class SequenceLiteralWithNodeHandle<N extends NodeHandle, E extends EdgeHandle<N>> implements Literal {
+	private static final long serialVersionUID = 1;
 
     private final HandleGraph<N, E> graph;
     private final N handle;
@@ -146,8 +149,10 @@ public class SequenceLiteralWithNodeHandle<N extends NodeHandle, E extends EdgeH
                     && this.handle.equals(other.handle)) {
                 return true;
             }
-            return graph.sequenceOf(handle)
-                    .equals(other.graph.sequenceOf(other.handle));
+            Sequence sequenceOfThis = graph.sequenceOf(handle);
+			Sequence sequenceOfOther = other.graph.sequenceOf(other.handle);
+			return sequenceOfThis
+                    .equals(sequenceOfOther);
         } else if (obj instanceof Literal) {
             Literal other = (Literal) obj;
             if (other.getLanguage().isPresent()) {

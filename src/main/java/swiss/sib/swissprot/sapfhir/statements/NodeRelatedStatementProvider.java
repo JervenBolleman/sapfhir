@@ -23,6 +23,7 @@ import static io.github.vgteam.handlegraph4j.iterators.AutoClosedIterator.flatMa
 import static io.github.vgteam.handlegraph4j.iterators.AutoClosedIterator.from;
 import static io.github.vgteam.handlegraph4j.iterators.AutoClosedIterator.of;
 import static io.github.vgteam.handlegraph4j.iterators.AutoClosedIterator.empty;
+import static io.github.vgteam.handlegraph4j.iterators.AutoClosedIterator.filter;
 
 import static swiss.sib.swissprot.sapfhir.statements.StatementProvider.nodeIriFromIRI;
 import io.github.vgteam.handlegraph4j.EdgeHandle;
@@ -43,6 +44,8 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
+
 import org.eclipse.rdf4j.model.BNode;
 import org.eclipse.rdf4j.model.IRI;
 import org.eclipse.rdf4j.model.Literal;
@@ -109,7 +112,7 @@ public class NodeRelatedStatementProvider<P extends PathHandle, S extends StepHa
         if (subject instanceof BNode) {
             return AutoClosedIterator.empty();
         }
-        NodeIRI nodeSubject = nodeIriFromIRI((IRI) subject, sail);
+        NodeIRI<N> nodeSubject = nodeIriFromIRI((IRI) subject, sail);
         if (nodeSubject != null) {
             return generateTriplesForKnownNode(nodeSubject, predicate, object);
         } else if (subject == null && object == null) {
@@ -155,7 +158,7 @@ public class NodeRelatedStatementProvider<P extends PathHandle, S extends StepHa
         if ((predicate == null || linkPredicates.contains(predicate))
                 && ((object instanceof IRI)
                 || object == null)) {
-            NodeIRI nodeObject = nodeIriFromIRI((IRI) object, sail);
+            NodeIRI<N> nodeObject = nodeIriFromIRI((IRI) object, sail);
             var linksForNode = linksForNode(node, predicate, nodeObject);
             var typesAndLinks = of(typeValue, linksForNode);
             return flatMap(typesAndLinks);
@@ -182,46 +185,53 @@ public class NodeRelatedStatementProvider<P extends PathHandle, S extends StepHa
     }
 
     private AutoClosedIterator<Statement> nodeSequenceToTriples(NodeSequence<N> ns, IRI predicate, Value object) {
-        Statement[] statements = new Statement[2];
+        
         NodeIRI<N> nodeSubject = new NodeIRI<>(sail.pathGraph().asLong(ns.node()), sail);
-        if ((RDF.TYPE.equals(predicate) || predicate == null) && object == null) {
+        Supplier<Literal> p = () -> new SequenceLiteral<N, E>(ns.sequence());
+        return nodeIriToTriples(predicate, object, nodeSubject, p);
+    }
+
+	private AutoClosedIterator<Statement> nodeIriToTriples(IRI predicate, Value object, NodeIRI<N> nodeSubject,
+			Supplier<Literal> p) {
+		if (RDF.TYPE.equals(predicate) && (object == null || VG.Node.equals(object))) {
+        	return of(nodeTypeStatement(nodeSubject));
+        } else if (RDF.VALUE.equals(predicate)) {
+        	Literal sequence = p.get();
+        	if (object == null || sequence.equals(object)) {
+        		return of(vf.createStatement(nodeSubject, RDF.VALUE, sequence));
+        	} else
+        		return empty();
+        	
+        }
+        Statement[] statements = new Statement[2];
+        if (object == null) {
             statements[0] = nodeTypeStatement(nodeSubject);
         }
-        if ((RDF.VALUE.equals(predicate) || predicate == null)) {
-            Literal sequence = new SequenceLiteral(ns.sequence());
-            Statement nodeValueStatement = vf.createStatement(nodeSubject, RDF.VALUE, sequence);
-            statements[1] = nodeValueStatement;
-        }
+        Literal sequence = p.get();
+        Statement nodeValueStatement = vf.createStatement(nodeSubject, RDF.VALUE, sequence);
+        statements[1] = nodeValueStatement;
+        
         var i = of(statements[0], statements[1]);
-        var f = AutoClosedIterator.filter(i, Objects::nonNull);
+        var f = filter(i, Objects::nonNull);
         return StatementProvider.filter(object, f);
-    }
+	}
 
     private AutoClosedIterator<Statement> nodeToTriples(N node, IRI predicate, Value object) {
-        Statement[] statements = new Statement[2];
         NodeIRI<N> nodeSubject = new NodeIRI<>(sail.pathGraph().asLong(node), sail);
-        if ((RDF.TYPE.equals(predicate) || predicate == null)) {
-            statements[0] = nodeTypeStatement(nodeSubject);
-        }
-        if ((RDF.VALUE.equals(predicate) || predicate == null)) {
-            Literal sequence = vf.createSequenceLiteral(node, sail.pathGraph());
-            statements[1] = vf.createStatement(nodeSubject, RDF.VALUE, sequence);
-        }
-        var i = of(statements[0], statements[1]);
-        var f = AutoClosedIterator.filter(i, Objects::nonNull);
-        return StatementProvider.filter(object, f);
+        Supplier<Literal> p = () -> vf.createSequenceLiteral(node, sail.pathGraph());
+        return nodeIriToTriples(predicate, object, nodeSubject, p);
     }
 
-    private Statement nodeTypeStatement(NodeIRI nodeSubject) {
+    private Statement nodeTypeStatement(NodeIRI<N> nodeSubject) {
         return vf.createStatement(nodeSubject, RDF.TYPE, VG.Node);
     }
 
-    private AutoClosedIterator<Statement> linksForNode(N node, IRI predicate, NodeIRI object) {
+    private AutoClosedIterator<Statement> linksForNode(N node, IRI predicate, NodeIRI<N> object) {
         PathGraph<P, S, N, E> pg = sail.pathGraph();
         AutoClosedIterator<E> asStream = pg.followEdgesToWardsTheLeft(node);
         if (object != null) {
             Predicate<E> rightMatches = e -> pg.asLong(e.right()) == object.id();
-            asStream = AutoClosedIterator.filter(asStream, rightMatches);
+            asStream = filter(asStream, rightMatches);
         }
         return edgesToStatements(predicate, asStream);
     }
@@ -247,18 +257,18 @@ public class NodeRelatedStatementProvider<P extends PathHandle, S extends StepHa
                         links(e)).iterator();
                 return from(i);
             });
-            return AutoClosedIterator.filter(flatMap(map),
+            return filter(flatMap(map),
                     Objects::nonNull);
         }
     }
 
     private Statement links(E edge) {
-        return vf.createStatement(new NodeIRI(sail.pathGraph().asLong(edge.left()), sail), VG.links, new NodeIRI(sail.pathGraph().asLong(edge.right()), sail));
+        return vf.createStatement(new NodeIRI<>(sail.pathGraph().asLong(edge.left()), sail), VG.links, new NodeIRI<>(sail.pathGraph().asLong(edge.right()), sail));
     }
 
     private Statement forwardToForward(E edge) {
         if (!sail.pathGraph().isReverseNodeHandle(edge.left()) && !sail.pathGraph().isReverseNodeHandle(edge.right())) {
-            return vf.createStatement(new NodeIRI(sail.pathGraph().asLong(edge.left()), sail), VG.linksForwardToForward, new NodeIRI(sail.pathGraph().asLong(edge.right()), sail));
+            return vf.createStatement(new NodeIRI<>(sail.pathGraph().asLong(edge.left()), sail), VG.linksForwardToForward, new NodeIRI<>(sail.pathGraph().asLong(edge.right()), sail));
         } else {
             return null;
         }
@@ -266,7 +276,7 @@ public class NodeRelatedStatementProvider<P extends PathHandle, S extends StepHa
 
     private Statement forwardToReverse(E edge) {
         if (!sail.pathGraph().isReverseNodeHandle(edge.left()) && sail.pathGraph().isReverseNodeHandle(edge.right())) {
-            return vf.createStatement(new NodeIRI(sail.pathGraph().asLong(edge.left()), sail), VG.linksForwardToReverse, new NodeIRI(sail.pathGraph().asLong(edge.right()), sail));
+            return vf.createStatement(new NodeIRI<>(sail.pathGraph().asLong(edge.left()), sail), VG.linksForwardToReverse, new NodeIRI<>(sail.pathGraph().asLong(edge.right()), sail));
         } else {
             return null;
         }
@@ -274,7 +284,7 @@ public class NodeRelatedStatementProvider<P extends PathHandle, S extends StepHa
 
     private Statement reverseToReverse(E edge) {
         if (sail.pathGraph().isReverseNodeHandle(edge.left()) && sail.pathGraph().isReverseNodeHandle(edge.right())) {
-            return vf.createStatement(new NodeIRI(sail.pathGraph().asLong(edge.left()), sail), VG.linksReverseToReverse, new NodeIRI(sail.pathGraph().asLong(edge.right()), sail));
+            return vf.createStatement(new NodeIRI<>(sail.pathGraph().asLong(edge.left()), sail), VG.linksReverseToReverse, new NodeIRI<>(sail.pathGraph().asLong(edge.right()), sail));
         } else {
             return null;
         }
@@ -282,7 +292,7 @@ public class NodeRelatedStatementProvider<P extends PathHandle, S extends StepHa
 
     private Statement reverseToForward(E edge) {
         if (sail.pathGraph().isReverseNodeHandle(edge.left()) && !sail.pathGraph().isReverseNodeHandle(edge.right())) {
-            return vf.createStatement(new NodeIRI(sail.pathGraph().asLong(edge.left()), sail), VG.linksReverseToForward, new NodeIRI(sail.pathGraph().asLong(edge.right()), sail));
+            return vf.createStatement(new NodeIRI<>(sail.pathGraph().asLong(edge.left()), sail), VG.linksReverseToForward, new NodeIRI<>(sail.pathGraph().asLong(edge.right()), sail));
         } else {
             return null;
         }

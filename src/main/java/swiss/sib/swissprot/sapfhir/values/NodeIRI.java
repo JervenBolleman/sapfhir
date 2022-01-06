@@ -16,6 +16,7 @@ import java.util.Objects;
  * @param <N> the type of NodeHandle
  */
 public class NodeIRI<N extends NodeHandle> implements IRI {
+	private static final long serialVersionUID = 1;
 
     private final long nodeId;
     private final PathHandleGraphSail<?, ?, N, ?> graph;

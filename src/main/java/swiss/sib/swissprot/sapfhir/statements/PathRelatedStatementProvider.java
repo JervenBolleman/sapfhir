@@ -83,7 +83,7 @@ public class PathRelatedStatementProvider<P extends PathHandle, S extends StepHa
             AutoClosedIterator<P> paths = sail.pathGraph().paths();
             var iris = map(paths, p -> new PathIRI<P>(p, sail));
             var stats = map(iris, p -> this.getStatements(p, predicate, object));
-            return AutoClosedIterator.flatMap(stats);
+            return flatMap(stats);
         } else if (subject instanceof IRI) {
             PathIRI<P> pathIRI = pathIriFromIri((IRI) subject, sail);
             if (pathIRI == null) {
@@ -96,7 +96,7 @@ public class PathRelatedStatementProvider<P extends PathHandle, S extends StepHa
                 var of = of(
                         knownSubjectTypeStatements(pathIRI, object),
                         knownSubjectLabelStatements(pathIRI, object));
-                return AutoClosedIterator.flatMap(of);
+                return flatMap(of);
             }
         } else {
             return empty();

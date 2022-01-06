@@ -139,7 +139,7 @@ public class StepPositionStatementProvider<P extends PathHandle, S extends StepH
     }
 
     private AutoClosedIterator<Statement> knownSubjectTypeStatement(Value object,
-            StepPositionIRI subject) {
+            StepPositionIRI<P, S> subject) {
         if (object instanceof Literal || object instanceof BNode) {
             return AutoClosedIterator.empty();
         }
@@ -171,11 +171,11 @@ public class StepPositionStatementProvider<P extends PathHandle, S extends StepH
         }
         AutoClosedIterator<Statement> stream;
         if (subject instanceof StepBeginPositionIRI) {
-            long position = ((StepBeginPositionIRI) subject).getBeginPosition();
+            long position = ((StepBeginPositionIRI<?,?>) subject).getBeginPosition();
             var l = vf.createLiteral(position);
             stream = AutoClosedIterator.of(vf.createStatement(subject, FALDO.position, l));
         } else if (subject instanceof StepEndPositionIRI) {
-            long position = ((StepEndPositionIRI) subject).getEndPosition();
+            long position = ((StepEndPositionIRI<?,?>) subject).getEndPosition();
             var l = vf.createLiteral(position);
             stream = AutoClosedIterator.of(vf.createStatement(subject, FALDO.position, l));
         } else {
@@ -188,9 +188,9 @@ public class StepPositionStatementProvider<P extends PathHandle, S extends StepH
         if (iri == null) {
             return null;
         } else if (iri instanceof StepBeginPositionIRI) {
-            return (StepBeginPositionIRI) iri;
+            return (StepBeginPositionIRI<P,S>) iri;
         } else if (iri instanceof StepEndPositionIRI) {
-            return (StepEndPositionIRI) iri;
+            return (StepEndPositionIRI<P,S>) iri;
         }
         String stringValue = iri.stringValue();
         int lastIndexOf = stringValue.lastIndexOf(POSITION);

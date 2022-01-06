@@ -18,6 +18,11 @@
  */
 package swiss.sib.swissprot.sapfhir.statements;
 
+import org.eclipse.rdf4j.model.IRI;
+import org.eclipse.rdf4j.model.Resource;
+import org.eclipse.rdf4j.model.Statement;
+import org.eclipse.rdf4j.model.Value;
+
 import io.github.vgteam.handlegraph4j.NodeHandle;
 import io.github.vgteam.handlegraph4j.PathHandle;
 import io.github.vgteam.handlegraph4j.StepHandle;
@@ -26,11 +31,6 @@ import swiss.sib.swissprot.sapfhir.sparql.PathHandleGraphSail;
 import swiss.sib.swissprot.sapfhir.values.NodeIRI;
 import swiss.sib.swissprot.sapfhir.values.PathIRI;
 import swiss.sib.swissprot.sapfhir.values.StepIRI;
-import java.util.stream.Stream;
-import org.eclipse.rdf4j.model.IRI;
-import org.eclipse.rdf4j.model.Resource;
-import org.eclipse.rdf4j.model.Statement;
-import org.eclipse.rdf4j.model.Value;
 
 /**
  * Collection of code to test if a certain basic graph pattern can be turned
@@ -95,7 +95,7 @@ public interface StatementProvider {
         if (object == null) {
             return stream;
         } else {
-            return AutoClosedIterator.filter(stream, s -> object.equals(s.getObject()));
+            return AutoClosedIterator.filter(stream, s -> s.getObject().equals(object));
         }
     }
 

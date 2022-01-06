@@ -63,7 +63,7 @@ public class HandleGraphValueFactory<P extends PathHandle, S extends StepHandle,
         try {
             S step = graph.stepFromIriString(namespace + localName);
             if (step != null) {
-                return new StepIRI(graph.pathGraph().pathOfStep(step), graph.pathGraph().rankOfStep(step), graph);
+                return new StepIRI<P>(graph.pathGraph().pathOfStep(step), graph.pathGraph().rankOfStep(step), graph);
             }
         } catch (NumberFormatException e) {
             return getInstance().createIRI(namespace, localName);
@@ -170,7 +170,7 @@ public class HandleGraphValueFactory<P extends PathHandle, S extends StepHandle,
         return getInstance().createStatement(subject, predicate, object, context);
     }
 
-    public <N extends NodeHandle, E extends EdgeHandle<N>> Literal createSequenceLiteral(final N handle, HandleGraph<N, E> graph) {
+    public Literal createSequenceLiteral(final N handle, HandleGraph<N, E> graph) {
         return new SequenceLiteralWithNodeHandle<>(graph, handle);
     }
 }

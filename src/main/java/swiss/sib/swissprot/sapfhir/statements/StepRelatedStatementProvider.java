@@ -18,22 +18,12 @@
  */
 package swiss.sib.swissprot.sapfhir.statements;
 
-import static swiss.sib.swissprot.sapfhir.statements.StatementProvider.stepIriFromIri;
-import io.github.vgteam.handlegraph4j.EdgeHandle;
-import io.github.vgteam.handlegraph4j.NodeHandle;
-import io.github.vgteam.handlegraph4j.PathHandle;
-import io.github.vgteam.handlegraph4j.StepHandle;
-import io.github.vgteam.handlegraph4j.iterators.AutoClosedIterator;
-import swiss.sib.swissprot.sapfhir.sparql.PathHandleGraphSail;
 import static swiss.sib.swissprot.sapfhir.statements.StatementProvider.filter;
-import swiss.sib.swissprot.sapfhir.values.HandleGraphValueFactory;
-import swiss.sib.swissprot.sapfhir.values.NodeIRI;
-import swiss.sib.swissprot.sapfhir.values.PathIRI;
-import swiss.sib.swissprot.sapfhir.values.StepBeginPositionIRI;
-import swiss.sib.swissprot.sapfhir.values.StepEndPositionIRI;
-import swiss.sib.swissprot.sapfhir.values.StepIRI;
+
+import static swiss.sib.swissprot.sapfhir.statements.StatementProvider.stepIriFromIri;
+import static io.github.vgteam.handlegraph4j.iterators.AutoClosedIterator.of;
 import java.util.Set;
-import java.util.regex.Pattern;
+
 import org.eclipse.rdf4j.model.BNode;
 import org.eclipse.rdf4j.model.IRI;
 import org.eclipse.rdf4j.model.Literal;
@@ -42,8 +32,21 @@ import org.eclipse.rdf4j.model.Statement;
 import org.eclipse.rdf4j.model.Value;
 import org.eclipse.rdf4j.model.datatypes.XMLDatatypeUtil;
 import org.eclipse.rdf4j.model.vocabulary.RDF;
+
+import io.github.vgteam.handlegraph4j.EdgeHandle;
+import io.github.vgteam.handlegraph4j.NodeHandle;
+import io.github.vgteam.handlegraph4j.PathHandle;
+import io.github.vgteam.handlegraph4j.StepHandle;
+import io.github.vgteam.handlegraph4j.iterators.AutoClosedIterator;
 import swiss.sib.swissprot.handlegraph4jrdf.FALDO;
 import swiss.sib.swissprot.handlegraph4jrdf.VG;
+import swiss.sib.swissprot.sapfhir.sparql.PathHandleGraphSail;
+import swiss.sib.swissprot.sapfhir.values.HandleGraphValueFactory;
+import swiss.sib.swissprot.sapfhir.values.NodeIRI;
+import swiss.sib.swissprot.sapfhir.values.PathIRI;
+import swiss.sib.swissprot.sapfhir.values.StepBeginPositionIRI;
+import swiss.sib.swissprot.sapfhir.values.StepEndPositionIRI;
+import swiss.sib.swissprot.sapfhir.values.StepIRI;
 
 /**
  *
@@ -58,7 +61,7 @@ public class StepRelatedStatementProvider<P extends PathHandle, S extends StepHa
         this.vf = vf;
         this.sail = sail;
     }
-    private static final Pattern matchesEndOfStepIri = Pattern.compile("/step/(\\d+)$");
+//    private static final Pattern matchesEndOfStepIri = Pattern.compile("/step/(\\d+)$");
     private static final Set<IRI> stepAssociatedTypes = Set.of(FALDO.Region,
             VG.Step);
     private static final Set<IRI> stepAssociatedPredicates = Set.of(
@@ -101,7 +104,7 @@ public class StepRelatedStatementProvider<P extends PathHandle, S extends StepHa
             var map = AutoClosedIterator.map(steps, s -> {
                 P path = sail.pathGraph().pathOfStep(s);
                 long rank = sail.pathGraph().rankOfStep(s);
-                StepIRI stepIRI = new StepIRI(path, rank, sail);
+                StepIRI<P> stepIRI = new StepIRI<>(path, rank, sail);
                 return getStatements(stepIRI, predicate, object);
             });
             return AutoClosedIterator.flatMap(map);
@@ -148,14 +151,20 @@ public class StepRelatedStatementProvider<P extends PathHandle, S extends StepHa
         }
     }
 
-    private AutoClosedIterator<Statement> knownSubjectTypeStatement(Value object, StepIRI subject) {
+    private AutoClosedIterator<Statement> knownSubjectTypeStatement(Value object, StepIRI<P> subject) {
         if (object instanceof Literal || object instanceof BNode) {
             return AutoClosedIterator.empty();
         }
-        AutoClosedIterator<Statement> stream = AutoClosedIterator.of(
-                vf.createStatement(subject, RDF.TYPE, VG.Step),
-                vf.createStatement(subject, RDF.TYPE, FALDO.Region));
-        return filter(object, stream);
+        if (VG.Step.equals(object)) {
+        	return of(vf.createStatement(subject, RDF.TYPE, VG.Step));
+        } else if (FALDO.Region.equals(object) ) {
+        	return of(vf.createStatement(subject, RDF.TYPE, FALDO.Region));
+        } else {
+	        AutoClosedIterator<Statement> stream = of(
+	                vf.createStatement(subject, RDF.TYPE, VG.Step),
+	                vf.createStatement(subject, RDF.TYPE, FALDO.Region));
+	        return filter(object, stream);
+        }
     }
 
     private AutoClosedIterator<Statement> knownSubjectRankStatements(Value object, StepIRI<P> stepSubject) {
@@ -175,7 +184,7 @@ public class StepRelatedStatementProvider<P extends PathHandle, S extends StepHa
         if (sail.pathGraph().isReverseNodeHandle(node)) {
             return AutoClosedIterator.empty();
         }
-        NodeIRI<N> nodeIRI = new NodeIRI(node.id(), sail);
+        NodeIRI<N> nodeIRI = new NodeIRI<>(node.id(), sail);
         AutoClosedIterator<Statement> stream = AutoClosedIterator.of(vf.createStatement(stepSubject, VG.node, nodeIRI));
         return filter(object, stream);
     }
@@ -189,7 +198,7 @@ public class StepRelatedStatementProvider<P extends PathHandle, S extends StepHa
         if (!sail.pathGraph().isReverseNodeHandle(node)) {
             return AutoClosedIterator.empty();
         }
-        NodeIRI<N> nodeIRI = new NodeIRI(node.id(), sail);
+        NodeIRI<N> nodeIRI = new NodeIRI<>(node.id(), sail);
         AutoClosedIterator<Statement> stream = AutoClosedIterator.of(vf.createStatement(stepSubject, VG.reverseOfNode, nodeIRI));
         return filter(object, stream);
     }

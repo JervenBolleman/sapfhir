@@ -18,10 +18,11 @@ import org.eclipse.rdf4j.model.impl.SimpleValueFactory;
  * @param <P> the type of PathHandle
  */
 public class PathIRI<P extends PathHandle> implements IRI {
+	private static final long serialVersionUID = 1;
 
     private static final ValueFactory VF = SimpleValueFactory.getInstance();
     private final P pathId;
-    private final PathHandleGraphSail graph;
+    private final PathHandleGraphSail<P, ?, ?, ?> graph;
 
     public PathIRI(P pathId, PathHandleGraphSail<P, ?, ?, ?> graph) {
         this.pathId = pathId;

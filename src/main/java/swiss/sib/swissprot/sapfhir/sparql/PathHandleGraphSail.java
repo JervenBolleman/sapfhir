@@ -18,21 +18,22 @@
  */
 package swiss.sib.swissprot.sapfhir.sparql;
 
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+import org.eclipse.rdf4j.sail.SailException;
+import org.eclipse.rdf4j.sail.helpers.AbstractSail;
+
 import io.github.vgteam.handlegraph4j.EdgeHandle;
 import io.github.vgteam.handlegraph4j.NodeHandle;
 import io.github.vgteam.handlegraph4j.PathGraph;
 import io.github.vgteam.handlegraph4j.PathHandle;
 import io.github.vgteam.handlegraph4j.StepHandle;
-import org.eclipse.rdf4j.model.ValueFactory;
-import org.eclipse.rdf4j.sail.SailException;
-import org.eclipse.rdf4j.sail.helpers.AbstractSail;
 import swiss.sib.swissprot.sapfhir.values.HandleGraphValueFactory;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 /**
  *
- * @author jbollema
+ * @author Jerven Bolleman
  * @param <P> the type of PathHandle
  * @param <S> the type of StepHandle
  * @param <E> the type of EdgeHandle
@@ -57,9 +58,9 @@ public class PathHandleGraphSail<P extends PathHandle, S extends StepHandle, N e
     }
 
     @Override
-    protected PathHandleGraphTripleSailConnection getConnectionInternal()
+    protected PathHandleGraphTripleSailConnection<P, S, N, E> getConnectionInternal()
             throws SailException {
-        return new PathHandleGraphTripleSailConnection(this);
+        return new PathHandleGraphTripleSailConnection<>(this);
     }
 
     @Override
@@ -68,8 +69,8 @@ public class PathHandleGraphSail<P extends PathHandle, S extends StepHandle, N e
     }
 
     @Override
-    public HandleGraphValueFactory getValueFactory() {
-        return new HandleGraphValueFactory(this);
+    public HandleGraphValueFactory<P, S, N, E> getValueFactory() {
+        return new HandleGraphValueFactory<P, S, N, E>(this);
     }
 
     public String getNodeNameSpace() {

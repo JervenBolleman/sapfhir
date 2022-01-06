@@ -202,12 +202,12 @@ public class PathHandleGraphTripleSailConnection<P extends PathHandle, S extends
 
         private final PathHandleGraphTripleSource<P, S, N, E> ts;
         private final StrictEvaluationStrategy strategy;
-        private final PathHandleEvaluationStatistics ev;
+        private final PathHandleEvaluationStatistics<P, S, N, E> ev;
 
         public PathHandleQueryOptimizerPipeline(
                 StrictEvaluationStrategy strategy,
                 PathHandleGraphTripleSource<P, S, N, E> ts,
-                PathHandleEvaluationStatistics ev) {
+                PathHandleEvaluationStatistics<P, S, N, E> ev) {
             this.ts = ts;
             this.strategy = strategy;
             this.ev = ev;

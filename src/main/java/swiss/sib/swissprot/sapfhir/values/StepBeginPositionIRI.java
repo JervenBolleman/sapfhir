@@ -19,7 +19,7 @@ import java.util.Objects;
  * @param <S> the type of StepHandle
  */
 public class StepBeginPositionIRI<P extends PathHandle, S extends StepHandle> extends StepPositionIRI<P, S> {
-
+	private static final long serialVersionUID = 1;
     public StepBeginPositionIRI(P pathId, long rank, PathHandleGraphSail<P, S, ?, ?> graph) {
         this(pathId, rank, graph, -404);
     }

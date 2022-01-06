@@ -93,7 +93,7 @@ public class PathHandleGraphTripleSource<P extends PathHandle, S extends StepHan
     }
 
     @Override
-    public HandleGraphValueFactory getValueFactory() {
+    public HandleGraphValueFactory<P,S, N, E> getValueFactory() {
         return vf;
     }
 

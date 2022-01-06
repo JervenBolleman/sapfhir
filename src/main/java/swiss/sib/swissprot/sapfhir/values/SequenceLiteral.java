@@ -18,16 +18,19 @@
  */
 package swiss.sib.swissprot.sapfhir.values;
 
-import io.github.vgteam.handlegraph4j.EdgeHandle;
-import io.github.vgteam.handlegraph4j.NodeHandle;
-import io.github.vgteam.handlegraph4j.sequences.Sequence;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.Optional;
+
 import javax.xml.datatype.XMLGregorianCalendar;
+
 import org.eclipse.rdf4j.model.IRI;
 import org.eclipse.rdf4j.model.Literal;
 import org.eclipse.rdf4j.model.vocabulary.XSD;
+
+import io.github.vgteam.handlegraph4j.EdgeHandle;
+import io.github.vgteam.handlegraph4j.NodeHandle;
+import io.github.vgteam.handlegraph4j.sequences.Sequence;
 
 /**
  *
@@ -36,6 +39,7 @@ import org.eclipse.rdf4j.model.vocabulary.XSD;
  * @param <N> the type of NodeHandle
  */
 public class SequenceLiteral<N extends NodeHandle, E extends EdgeHandle<N>> implements Literal {
+	private static final long serialVersionUID = 1;
 
     private final Sequence s;
 
@@ -142,7 +146,7 @@ public class SequenceLiteral<N extends NodeHandle, E extends EdgeHandle<N>> impl
             return false;
         }
         if (obj instanceof SequenceLiteral) {
-            SequenceLiteral other = (SequenceLiteral) obj;
+            SequenceLiteral<?,?> other = (SequenceLiteral<?,?>) obj;
             return this.s.equals(other.s);
         } else if (obj instanceof Literal) {
             Literal other = (Literal) obj;
