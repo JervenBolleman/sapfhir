@@ -93,10 +93,10 @@ public class PathRelatedStatementProvider<P extends PathHandle, S extends StepHa
             } else if (RDFS.LABEL.equals(predicate)) {
                 return knownSubjectLabelStatements(pathIRI, object);
             } else {
-                var of = of(
+                var of = concat(
                         knownSubjectTypeStatements(pathIRI, object),
                         knownSubjectLabelStatements(pathIRI, object));
-                return flatMap(of);
+                return of;
             }
         } else {
             return empty();

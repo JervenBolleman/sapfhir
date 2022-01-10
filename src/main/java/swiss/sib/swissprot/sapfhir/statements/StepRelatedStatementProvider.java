@@ -18,10 +18,11 @@
  */
 package swiss.sib.swissprot.sapfhir.statements;
 
-import static swiss.sib.swissprot.sapfhir.statements.StatementProvider.filter;
-
-import static swiss.sib.swissprot.sapfhir.statements.StatementProvider.stepIriFromIri;
+import static io.github.vgteam.handlegraph4j.iterators.AutoClosedIterator.concat;
 import static io.github.vgteam.handlegraph4j.iterators.AutoClosedIterator.of;
+import static swiss.sib.swissprot.sapfhir.statements.StatementProvider.filter;
+import static swiss.sib.swissprot.sapfhir.statements.StatementProvider.stepIriFromIri;
+
 import java.util.Set;
 
 import org.eclipse.rdf4j.model.BNode;
@@ -140,12 +141,12 @@ public class StepRelatedStatementProvider<P extends PathHandle, S extends StepHa
             var nodeStatements = knownSubjectNodeStatements(object, stepSubject);
             var pathStatements = knownSubjectPathStatements(object, stepSubject);
             var reverseNodeStatements = knownSubjectReverseNodeStatements(object, stepSubject);
-            var of = AutoClosedIterator.of(typeStatement,
-                    rankStatements,
-                    pathStatements,
-                    nodeStatements,
-                    reverseNodeStatements);
-            return AutoClosedIterator.flatMap(of);
+            var of = concat(concat(concat(typeStatement,
+                    rankStatements),
+                    pathStatements),
+                    concat(nodeStatements,
+                    reverseNodeStatements));
+            return of;
         } else {
             return AutoClosedIterator.empty();
         }
@@ -160,9 +161,9 @@ public class StepRelatedStatementProvider<P extends PathHandle, S extends StepHa
         } else if (FALDO.Region.equals(object) ) {
         	return of(vf.createStatement(subject, RDF.TYPE, FALDO.Region));
         } else {
-	        AutoClosedIterator<Statement> stream = of(
-	                vf.createStatement(subject, RDF.TYPE, VG.Step),
-	                vf.createStatement(subject, RDF.TYPE, FALDO.Region));
+	        AutoClosedIterator<Statement> stream = concat(
+	                of(vf.createStatement(subject, RDF.TYPE, VG.Step)),
+	                of(vf.createStatement(subject, RDF.TYPE, FALDO.Region)));
 	        return filter(object, stream);
         }
     }

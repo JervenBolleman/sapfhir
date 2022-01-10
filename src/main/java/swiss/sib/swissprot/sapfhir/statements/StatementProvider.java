@@ -95,8 +95,12 @@ public interface StatementProvider {
         if (object == null) {
             return stream;
         } else {
-            return AutoClosedIterator.filter(stream, s -> s.getObject().equals(object));
+            return AutoClosedIterator.filter(stream, s -> StatementProvider.objectEquals(object, s));
         }
+    }
+    
+    private static boolean objectEquals(Value object, Statement stat) {
+    	return stat.getObject().equals(object);
     }
 
     public default double estimateCardinality(Resource subj, IRI predicate, Value obj) {

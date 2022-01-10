@@ -18,23 +18,17 @@
  */
 package swiss.sib.swissprot.sapfhir.statements;
 
-import io.github.vgteam.handlegraph4j.EdgeHandle;
-import io.github.vgteam.handlegraph4j.NodeHandle;
-import io.github.vgteam.handlegraph4j.PathGraph;
-import io.github.vgteam.handlegraph4j.PathHandle;
-import io.github.vgteam.handlegraph4j.StepHandle;
-import io.github.vgteam.handlegraph4j.iterators.AutoClosedIterator;
+import static io.github.vgteam.handlegraph4j.iterators.AutoClosedIterator.concat;
+import static io.github.vgteam.handlegraph4j.iterators.AutoClosedIterator.of;
 import static io.github.vgteam.handlegraph4j.iterators.AutoClosedIterator.empty;
 import static io.github.vgteam.handlegraph4j.iterators.AutoClosedIterator.flatMap;
 import static io.github.vgteam.handlegraph4j.iterators.AutoClosedIterator.map;
-import static io.github.vgteam.handlegraph4j.iterators.AutoClosedIterator.of;
-import swiss.sib.swissprot.sapfhir.sparql.PathHandleGraphSail;
 import static swiss.sib.swissprot.sapfhir.statements.StatementProvider.filter;
-import swiss.sib.swissprot.sapfhir.values.HandleGraphValueFactory;
-import swiss.sib.swissprot.sapfhir.values.PathIRI;
-import swiss.sib.swissprot.sapfhir.values.StepBeginPositionIRI;
-import swiss.sib.swissprot.sapfhir.values.StepEndPositionIRI;
+import static swiss.sib.swissprot.sapfhir.statements.StatementProvider.pathIriFromIri;
+import static swiss.sib.swissprot.sapfhir.values.StepPositionIRI.POSITION;
+
 import java.util.Set;
+
 import org.eclipse.rdf4j.model.BNode;
 import org.eclipse.rdf4j.model.IRI;
 import org.eclipse.rdf4j.model.Literal;
@@ -43,11 +37,21 @@ import org.eclipse.rdf4j.model.Statement;
 import org.eclipse.rdf4j.model.Value;
 import org.eclipse.rdf4j.model.datatypes.XMLDatatypeUtil;
 import org.eclipse.rdf4j.model.vocabulary.RDF;
+
+import io.github.vgteam.handlegraph4j.EdgeHandle;
+import io.github.vgteam.handlegraph4j.NodeHandle;
+import io.github.vgteam.handlegraph4j.PathGraph;
+import io.github.vgteam.handlegraph4j.PathHandle;
+import io.github.vgteam.handlegraph4j.StepHandle;
+import io.github.vgteam.handlegraph4j.iterators.AutoClosedIterator;
 import swiss.sib.swissprot.handlegraph4jrdf.FALDO;
 import swiss.sib.swissprot.handlegraph4jrdf.VG;
-import static swiss.sib.swissprot.sapfhir.statements.StatementProvider.pathIriFromIri;
+import swiss.sib.swissprot.sapfhir.sparql.PathHandleGraphSail;
+import swiss.sib.swissprot.sapfhir.values.HandleGraphValueFactory;
+import swiss.sib.swissprot.sapfhir.values.PathIRI;
+import swiss.sib.swissprot.sapfhir.values.StepBeginPositionIRI;
+import swiss.sib.swissprot.sapfhir.values.StepEndPositionIRI;
 import swiss.sib.swissprot.sapfhir.values.StepPositionIRI;
-import static swiss.sib.swissprot.sapfhir.values.StepPositionIRI.POSITION;
 
 /**
  *
@@ -129,10 +133,10 @@ public class StepPositionStatementProvider<P extends PathHandle, S extends StepH
             return knownSubjectPositionStatements(object, stepSubject);
         } else if (predicate == null) {
             var typeStatement = knownSubjectTypeStatement(object, stepSubject);
-            var all = AutoClosedIterator.of(typeStatement,
-                    knownSubjectReferenceStatements(object, stepSubject),
-                    knownSubjectPositionStatements(object, stepSubject));
-            return flatMap(all);
+            var all = concat(typeStatement,
+                    concat(knownSubjectReferenceStatements(object, stepSubject),
+                    knownSubjectPositionStatements(object, stepSubject)));
+            return all;
         } else {
             return empty();
         }
@@ -143,9 +147,9 @@ public class StepPositionStatementProvider<P extends PathHandle, S extends StepH
         if (object instanceof Literal || object instanceof BNode) {
             return AutoClosedIterator.empty();
         }
-        AutoClosedIterator<Statement> stream = AutoClosedIterator.of(
-                vf.createStatement(subject, RDF.TYPE, FALDO.Position),
-                vf.createStatement(subject, RDF.TYPE, FALDO.ExactPosition));
+        AutoClosedIterator<Statement> stream = concat(
+                of(vf.createStatement(subject, RDF.TYPE, FALDO.Position)),
+                of(vf.createStatement(subject, RDF.TYPE, FALDO.ExactPosition)));
         if (object == null) {
             return stream;
         } else {
@@ -274,7 +278,7 @@ public class StepPositionStatementProvider<P extends PathHandle, S extends StepH
             var e = new StepEndPositionIRI<>(path, rank, sail, endPosition);
             beginPosition = endPosition + 1;
             rank++;
-            return of(b, e);
+            return concat(of(b), of(e));
         }
     }
 

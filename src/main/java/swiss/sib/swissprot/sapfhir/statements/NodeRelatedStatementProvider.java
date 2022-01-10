@@ -21,6 +21,7 @@ package swiss.sib.swissprot.sapfhir.statements;
 import static io.github.vgteam.handlegraph4j.iterators.AutoClosedIterator.map;
 import static io.github.vgteam.handlegraph4j.iterators.AutoClosedIterator.flatMap;
 import static io.github.vgteam.handlegraph4j.iterators.AutoClosedIterator.from;
+import static io.github.vgteam.handlegraph4j.iterators.AutoClosedIterator.concat;
 import static io.github.vgteam.handlegraph4j.iterators.AutoClosedIterator.of;
 import static io.github.vgteam.handlegraph4j.iterators.AutoClosedIterator.empty;
 import static io.github.vgteam.handlegraph4j.iterators.AutoClosedIterator.filter;
@@ -143,10 +144,8 @@ public class NodeRelatedStatementProvider<P extends PathHandle, S extends StepHa
         if (predicate == null || linkPredicates.contains(predicate)) {
             var edges = sail.pathGraph().edges();
             var edgeStatements = edgesToStatements(predicate, edges);
-            var i = of(nodes, edgeStatements);
-            var m = map(i, AutoClosedIterator::from);
-            return flatMap(m);
-//            return Stream.concat(nodes, edgeStatements);
+            var i = concat(nodes, edgeStatements);
+            return i;
         }
         return nodes;
     }
@@ -160,8 +159,8 @@ public class NodeRelatedStatementProvider<P extends PathHandle, S extends StepHa
                 || object == null)) {
             NodeIRI<N> nodeObject = nodeIriFromIRI((IRI) object, sail);
             var linksForNode = linksForNode(node, predicate, nodeObject);
-            var typesAndLinks = of(typeValue, linksForNode);
-            return flatMap(typesAndLinks);
+            var typesAndLinks = concat(typeValue, linksForNode);
+            return typesAndLinks;
         }
         return typeValue;
     }
@@ -211,7 +210,7 @@ public class NodeRelatedStatementProvider<P extends PathHandle, S extends StepHa
         Statement nodeValueStatement = vf.createStatement(nodeSubject, RDF.VALUE, sequence);
         statements[1] = nodeValueStatement;
         
-        var i = of(statements[0], statements[1]);
+        var i = from(Arrays.asList(statements[0], statements[1]).iterator());
         var f = filter(i, Objects::nonNull);
         return StatementProvider.filter(object, f);
 	}
