@@ -19,10 +19,10 @@
 package swiss.sib.swissprot.sapfhir.statements;
 
 import static io.github.vgteam.handlegraph4j.iterators.AutoClosedIterator.concat;
-import static io.github.vgteam.handlegraph4j.iterators.AutoClosedIterator.of;
 import static io.github.vgteam.handlegraph4j.iterators.AutoClosedIterator.empty;
 import static io.github.vgteam.handlegraph4j.iterators.AutoClosedIterator.flatMap;
 import static io.github.vgteam.handlegraph4j.iterators.AutoClosedIterator.map;
+import static io.github.vgteam.handlegraph4j.iterators.AutoClosedIterator.of;
 import static swiss.sib.swissprot.sapfhir.statements.StatementProvider.filter;
 import static swiss.sib.swissprot.sapfhir.statements.StatementProvider.pathIriFromIri;
 import static swiss.sib.swissprot.sapfhir.values.StepPositionIRI.POSITION;
@@ -271,7 +271,7 @@ public class StepPositionStatementProvider<P extends PathHandle, S extends StepH
         @Override
         public AutoClosedIterator<StepPositionIRI<P, S>> next() {
             S s = steps.next();
-            int seqln = pg.sequenceOf(pg.nodeOfStep(s)).length();
+            int seqln = pg.sequenceLengthOf(pg.nodeOfStep(s));
 
             var b = new StepBeginPositionIRI<>(path, rank, sail, beginPosition);
             long endPosition = beginPosition + seqln;
