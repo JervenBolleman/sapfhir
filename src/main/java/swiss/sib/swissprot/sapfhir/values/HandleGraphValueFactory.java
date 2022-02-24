@@ -22,6 +22,7 @@ import org.eclipse.rdf4j.model.Resource;
 import org.eclipse.rdf4j.model.Statement;
 import org.eclipse.rdf4j.model.Value;
 import org.eclipse.rdf4j.model.ValueFactory;
+import org.eclipse.rdf4j.model.base.CoreDatatype;
 import org.eclipse.rdf4j.model.impl.SimpleValueFactory;
 import swiss.sib.swissprot.sapfhir.sparql.PathHandleGraphSail;
 
@@ -173,4 +174,19 @@ public class HandleGraphValueFactory<P extends PathHandle, S extends StepHandle,
     public Literal createSequenceLiteral(final N handle, HandleGraph<N, E> graph) {
         return new SequenceLiteralWithNodeHandle<>(graph, handle);
     }
+
+	@Override
+	public Literal createLiteral(String label, CoreDatatype datatype) {
+//		// TODO Auto-generated method stub
+//		return null;
+		throw new UnsupportedOperationException();
+	}
+
+	@Override
+	public Literal createLiteral(String label, IRI datatype, CoreDatatype coreDatatype) {
+//		// TODO Auto-generated method stub
+		throw new UnsupportedOperationException();
+	}
+    
+    
 }

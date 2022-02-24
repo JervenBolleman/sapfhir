@@ -29,6 +29,7 @@ import java.util.Optional;
 import javax.xml.datatype.XMLGregorianCalendar;
 import org.eclipse.rdf4j.model.IRI;
 import org.eclipse.rdf4j.model.Literal;
+import org.eclipse.rdf4j.model.base.CoreDatatype;
 import org.eclipse.rdf4j.model.vocabulary.XSD;
 
 /**
@@ -163,5 +164,12 @@ public class SequenceLiteralWithNodeHandle<N extends NodeHandle, E extends EdgeH
             }
         }
         return false;
+  
+    
     }
+
+	@Override
+	public CoreDatatype getCoreDatatype() {
+		return CoreDatatype.XSD.STRING;
+	}
 }

@@ -93,7 +93,8 @@ public class PathHandleGraphTripleSailConnection<P extends PathHandle, S extends
             var tripleSource = tripleSource();
             var strategy = evalutationStrategy(tripleSource);
             tupleExpr = optimize(tripleSource, strategy, tupleExpr, bindings);
-            return strategy.evaluate(tupleExpr, bindings);
+            return strategy.precompile(tupleExpr).evaluate(bindings);
+//            return strategy.evaluate(tupleExpr, bindings);
         } catch (QueryEvaluationException e) {
             throw new SailException(e);
         }
