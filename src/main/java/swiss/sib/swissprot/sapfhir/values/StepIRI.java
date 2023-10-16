@@ -1,18 +1,34 @@
-/*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
+/**
+ * Copyright (c) 2020, SIB Swiss Institute of Bioinformatics
+ * and/or its affiliates. All rights reserved.
+ * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
+ *
+ * This code is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License version 3 only, as
+ * published by the Free Software Foundation.
+ *
+ * This code is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+ * version 3 for more details (a copy is included in the LICENSE file that
+ * accompanied this code).
+ *
+ * You should have received a copy of the GNU General Public License version
+ * 3 along with this work; if not, write to the Free Software Foundation,
+ * Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 package swiss.sib.swissprot.sapfhir.values;
 
-import io.github.vgteam.handlegraph4j.PathHandle;
-import org.eclipse.rdf4j.model.IRI;
-import swiss.sib.swissprot.sapfhir.sparql.PathHandleGraphSail;
 import java.util.Objects;
+
+import org.eclipse.rdf4j.model.IRI;
+
+import io.github.jervenbolleman.handlegraph4j.PathHandle;
+import swiss.sib.swissprot.sapfhir.sparql.PathHandleGraphSail;
 
 /**
  *
- * @author jbollema
+ * @author <a href="mailto:jerven.bolleman@sib.swiss">Jerven Bolleman</a>
  * @param <P> the type of PathHandle
  */
 public class StepIRI<P extends PathHandle> implements IRI {

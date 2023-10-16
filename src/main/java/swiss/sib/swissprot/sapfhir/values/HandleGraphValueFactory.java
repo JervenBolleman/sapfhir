@@ -1,20 +1,32 @@
-/*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
+/**
+ * Copyright (c) 2020, SIB Swiss Institute of Bioinformatics
+ * and/or its affiliates. All rights reserved.
+ * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
+ *
+ * This code is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License version 3 only, as
+ * published by the Free Software Foundation.
+ *
+ * This code is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+ * version 3 for more details (a copy is included in the LICENSE file that
+ * accompanied this code).
+ *
+ * You should have received a copy of the GNU General Public License version
+ * 3 along with this work; if not, write to the Free Software Foundation,
+ * Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 package swiss.sib.swissprot.sapfhir.values;
 
-import io.github.vgteam.handlegraph4j.EdgeHandle;
-import io.github.vgteam.handlegraph4j.HandleGraph;
-import io.github.vgteam.handlegraph4j.NodeHandle;
-import io.github.vgteam.handlegraph4j.PathHandle;
-import io.github.vgteam.handlegraph4j.StepHandle;
 import static org.eclipse.rdf4j.model.impl.SimpleValueFactory.getInstance;
+
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.Date;
+
 import javax.xml.datatype.XMLGregorianCalendar;
+
 import org.eclipse.rdf4j.model.BNode;
 import org.eclipse.rdf4j.model.IRI;
 import org.eclipse.rdf4j.model.Literal;
@@ -24,11 +36,17 @@ import org.eclipse.rdf4j.model.Value;
 import org.eclipse.rdf4j.model.ValueFactory;
 import org.eclipse.rdf4j.model.base.CoreDatatype;
 import org.eclipse.rdf4j.model.impl.SimpleValueFactory;
+
+import io.github.jervenbolleman.handlegraph4j.EdgeHandle;
+import io.github.jervenbolleman.handlegraph4j.HandleGraph;
+import io.github.jervenbolleman.handlegraph4j.NodeHandle;
+import io.github.jervenbolleman.handlegraph4j.PathHandle;
+import io.github.jervenbolleman.handlegraph4j.StepHandle;
 import swiss.sib.swissprot.sapfhir.sparql.PathHandleGraphSail;
 
 /**
  *
- * @author jbollema
+ * @author <a href="mailto:jerven.bolleman@sib.swiss">Jerven Bolleman</a>
  * @param <P> the type of PathHandle
  * @param <S> the type of StepHandle
  * @param <E> the type of EdgeHandle
