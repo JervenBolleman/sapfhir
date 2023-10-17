@@ -33,6 +33,7 @@ import org.eclipse.rdf4j.model.IRI;
 import org.eclipse.rdf4j.model.Literal;
 import org.eclipse.rdf4j.model.Value;
 import org.eclipse.rdf4j.model.ValueFactory;
+import org.eclipse.rdf4j.query.Binding;
 import org.eclipse.rdf4j.query.BindingSet;
 import org.eclipse.rdf4j.query.MalformedQueryException;
 import org.eclipse.rdf4j.query.QueryLanguage;
@@ -68,44 +69,45 @@ import swiss.sib.swissprot.sapfhir.values.StepIRI;
 public class PathHandleGraphSailTest {
 
 	private static final String EXAMPLE_BASE = "http://example.org/vg/";
-	private static final String TEST_DATA = "H\tVN:Z:1.0\n" 
-			+ "S\t1\tCAAATAAG\n" 
-			+ "S\t2\tA\n" 
-			+ "S\t3\tG\n"
-			+ "S\t4\tT\n" 
-			+ "S\t5\tC\n" 
-			+ "S\t6\tTTG\n" 
-			+ "S\t7\tA\n" 
-			+ "S\t8\tG\n" 
-			+ "S\t9\tAAATTTTCTGGAGTTCTAT\n"
-			+ "S\t10\tA\n" 
-			+ "S\t11\tT\n" 
-			+ "S\t12\tATAT\n" 
-			+ "S\t13\tA\n"
-			+ "S\t14\tT\n" 
-			+ "S\t15\tCCAACTCTCTG\n"
-			+ "P\tx\t1+,3+,5+,6+,8+,9+,11+,12+,14+,15+,3+\t8M,1M,1M,3M,1M,19M,1M,4M,1M,11M\n" 
-			+ "L\t1\t+\t2\t+\t0M\n"
-			+ "L\t1\t+\t3\t+\t0M\n" 
-			+ "L\t2\t+\t4\t+\t0M\n"
-			+ "L\t2\t+\t5\t+\t0M\n"
-			+ "L\t3\t+\t4\t+\t0M\n"
-			+ "L\t3\t+\t5\t+\t0M\n"
-			+ "L\t4\t+\t6\t+\t0M\n" 
-			+ "L\t5\t+\t6\t+\t0M\n" 
-			+ "L\t6\t+\t7\t+\t0M\n"
-			+ "L\t6\t+\t8\t+\t0M\n"
-			+ "L\t7\t+\t9\t+\t0M\n" 
-			+ "L\t8\t+\t9\t+\t0M\n" 
-			+ "L\t9\t+\t10\t+\t0M\n"
-			+ "L\t9\t+\t11\t+\t0M\n" 
-			+ "L\t10\t+\t12\t+\t0M\n" 
-			+ "L\t11\t+\t12\t+\t0M\n" 
-			+ "L\t12\t+\t13\t+\t0M\n"
-			+ "L\t12\t+\t14\t+\t0M\n" 
-			+ "L\t13\t+\t15\t+\t0M\n" 
-			+ "L\t14\t+\t15\t+\t0M\n"
-			+ "L\t15\t+\t3\t+\t0M";
+	private static final String TEST_DATA = """
+			H\tVN:Z:1.0
+			S\t1\tCAAATAAG
+			S\t2\tA
+			S\t3\tG
+			S\t4\tT
+			S\t5\tC
+			S\t6\tTTG
+			S\t7\tA
+			S\t8\tG
+			S\t9\tAAATTTTCTGGAGTTCTAT
+			S\t10\tA
+			S\t11\tT
+			S\t12\tATAT
+			S\t13\tA
+			S\t14\tT
+			S\t15\tCCAACTCTCTG
+			P\tx\t1+,3+,5+,6+,8+,9+,11+,12+,14+,15+,3+\t8M,1M,1M,3M,1M,19M,1M,4M,1M,11M
+			L\t1\t+\t2\t+\t0M
+			L\t1\t+\t3\t+\t0M
+			L\t2\t+\t4\t+\t0M
+			L\t2\t+\t5\t+\t0M
+			L\t3\t+\t4\t+\t0M
+			L\t3\t+\t5\t+\t0M
+			L\t4\t+\t6\t+\t0M
+			L\t5\t+\t6\t+\t0M
+			L\t6\t+\t7\t+\t0M
+			L\t6\t+\t8\t+\t0M
+			L\t7\t+\t9\t+\t0M
+			L\t8\t+\t9\t+\t0M
+			L\t9\t+\t10\t+\t0M
+			L\t9\t+\t11\t+\t0M
+			L\t10\t+\t12\t+\t0M
+			L\t11\t+\t12\t+\t0M
+			L\t12\t+\t13\t+\t0M
+			L\t12\t+\t14\t+\t0M
+			L\t13\t+\t15\t+\t0M
+			L\t14\t+\t15\t+\t0M
+			L\t15\t+\t3\t+\t0M""";
 
 	private final SimplePathGraph spg;
 
@@ -276,7 +278,7 @@ public class PathHandleGraphSailTest {
 			assertFalse(r.hasNext());
 		};
 
-		String all = "SELECT ?s ?p ?o \n" + "WHERE {?s ?p ?o .\n" + "} ";
+		String all = "SELECT ?s ?p ?o WHERE {?s ?p ?o . }";
 		try (RepositoryConnection connection = instance.getConnection()) {
 			evaluate(all, connection, test);
 		}
@@ -307,19 +309,23 @@ public class PathHandleGraphSailTest {
 				assertNotNull(node);
 				Literal binding = (Literal) next.getBinding("id").getValue();
 				assertNotNull(binding);
-				assertEquals(i + 1, binding.intValue());
+				assertEquals(i + 1, binding.intValue(), node.toString());
 			}
 			assertFalse(r.hasNext());
 		};
-
-		String select_node_WHERE_node_a_vgNode = "SELECT ?node ?id \n" + "WHERE {?node a vg:Node .\n"
-				+ "BIND(xsd:int(SUBSTR(STR(?node),28)) AS ?id)\n" + "} ORDER BY ?id";
+		assertEquals(15, spg.nodeCount());
+		String select_node_WHERE_node_a_vgNode = """
+				SELECT ?node ?id 
+				WHERE {
+				?node a vg:Node . 
+				BIND(xsd:int(SUBSTR(STR(?node),28)) AS ?id)} 
+				ORDER BY ?id""";
 		try (RepositoryConnection connection = instance.getConnection()) {
 			evaluate(select_node_WHERE_node_a_vgNode, connection, test);
 		}
 	}
 
-	public void evaluate(String query, RepositoryConnection conn, Consumer<TupleQueryResult> evaluate) {
+	private void evaluate(String query, RepositoryConnection conn, Consumer<TupleQueryResult> evaluate) {
 		TupleQuery prepareTupleQuery = prepareQuery(conn, query);
 		try (TupleQueryResult result = prepareTupleQuery.evaluate()) {
 			evaluate.accept(result);
@@ -340,7 +346,7 @@ public class PathHandleGraphSailTest {
 				Value step = next.getValue("step");
 				assertNotNull(step);
 				assertTrue(step instanceof StepIRI);
-				StepIRI stepIri = (StepIRI) step;
+				StepIRI<?> stepIri = (StepIRI<?>) step;
 				assertEquals(stepIri.rank(), i);
 			}
 			assertFalse(r.hasNext());
@@ -467,6 +473,32 @@ public class PathHandleGraphSailTest {
 
 			evaluate(paths, connection, test);
 			evaluate(pathLabels, connection, test);
+		}
+	}
+
+	@Test
+	public void testGroupByQueries() {
+		SailRepository instance = getSailRepository();
+		String nodeOccurence = "SELECT ?node (COUNT(?node2) AS ?nodeCount) WHERE {?node vg:linksForwardToForward ?node2} GROUP BY ?node ORDER BY ASC (COUNT(?node2))";
+		Consumer<TupleQueryResult> test = r -> {
+			for (int i = 0; i < 15; i++) {
+				assertTrue(r.hasNext(), "at i:" + i);
+				BindingSet next = r.next();
+				assertNotNull(next);
+				final Binding node = next.getBinding("node");
+				final Binding nodeCount = next.getBinding("nodeCount");
+				assertNotNull(nodeCount);
+				if (i > 8) {
+					assertEquals(2, ((Literal) nodeCount.getValue()).intValue(), i + " " + node.toString());
+				} else {
+					assertEquals(1, ((Literal) nodeCount.getValue()).intValue(), i + " " + node.toString());
+				}
+			}
+			assertFalse(r.hasNext());
+		};
+		try (RepositoryConnection connection = instance.getConnection()) {
+
+			evaluate(nodeOccurence, connection, test);
 		}
 	}
 

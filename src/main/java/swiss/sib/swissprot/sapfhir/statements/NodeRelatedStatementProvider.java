@@ -119,7 +119,7 @@ public class NodeRelatedStatementProvider<P extends PathHandle, S extends StepHa
         if (nodeSubject != null) {
             return generateTriplesForKnownNode(nodeSubject, predicate, object);
         } else if (subject == null && object == null) {
-            return generateTriplesForAllNodes(predicate, object);
+            return generateTriplesForAllNodes(predicate);
         } else if (object instanceof Literal && (predicate == null || RDF.VALUE.equals(predicate))) {
             return getNodeTriplesForKnownSequence(object, RDF.VALUE);
         } else if (object instanceof IRI) {
@@ -137,19 +137,24 @@ public class NodeRelatedStatementProvider<P extends PathHandle, S extends StepHa
         return AutoClosedIterator.empty();
     }
 
-    private AutoClosedIterator<Statement> generateTriplesForAllNodes(IRI predicate, Value object) {
+    private AutoClosedIterator<Statement> generateTriplesForAllNodes(IRI predicate) {
         var nodeWithSequence = sail.pathGraph().nodesWithTheirSequence();
 
-        //All nodes
-        var to = map(nodeWithSequence, (n) -> nodeSequenceToTriples(n, predicate, object));
-        var nodes = flatMap(to);
-        if (predicate == null || linkPredicates.contains(predicate)) {
+     
+        if (predicate == null) {
+        	   //All nodes
+            var to = map(nodeWithSequence, (n) -> nodeSequenceToTriples(n, predicate, null));
+            
+        	var nodes = flatMap(to);
             var edges = sail.pathGraph().edges();
             var edgeStatements = edgesToStatements(predicate, edges);
-            var i = concat(nodes, edgeStatements);
-            return i;
+            return concat(nodes, edgeStatements);
+        } else if (linkPredicates.contains(predicate)){
+        	var edges = sail.pathGraph().edges();
+            return edgesToStatements(predicate, edges);
+        } else {
+        	return empty();
         }
-        return nodes;
     }
 
     private AutoClosedIterator<Statement> generateTriplesForKnownNode(NodeIRI<N> nodeSubject, IRI predicate, Value object) {
