@@ -51,13 +51,7 @@ public class StepBeginPositionIRI<P extends PathHandle, S extends StepHandle> ex
 
     @Override
     public String getLocalName() {
-        PathGraph<P, S, ?, ?> pathGraph = graph.pathGraph();
-        S step = pathGraph.stepByRankAndPath(path, rank);
-        if (hasCachedPosition()) {
-            return Long.toString(pathGraph.beginPositionOfStep(step));
-        } else {
-            return Long.toString(position);
-        }
+        return Long.toString(getBeginPosition());
     }
 
     @Override

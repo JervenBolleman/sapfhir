@@ -52,13 +52,7 @@ public class StepEndPositionIRI<P extends PathHandle, S extends StepHandle> exte
 
 	@Override
 	public String getLocalName() {
-		PathGraph<P, S, ?, ?> pathGraph = graph.pathGraph();
-		S step = pathGraph.stepByRankAndPath(path, rank);
-		if (hasCachedPosition()) {
-			return Long.toString(position);
-		} else {
-			return Long.toString(pathGraph.endPositionOfStep(step));
-		}
+		return Long.toString(getEndPosition());
 	}
 
 	@Override
