@@ -41,6 +41,12 @@ public abstract class StepPositionIRI<P extends PathHandle, S extends StepHandle
     protected final long rank;
     protected final PathHandleGraphSail<P, S, ?, ?> graph;
 
+    /**
+     * 
+     * @param path
+     * @param rank
+     * @param graph
+     */
     protected StepPositionIRI(P path, long rank, PathHandleGraphSail<P, S, ?, ?> graph) {
         this.position = POSITION_NOT_SET;
         this.path = path;
@@ -48,6 +54,13 @@ public abstract class StepPositionIRI<P extends PathHandle, S extends StepHandle
         this.graph = graph;
     }
 
+    /**
+     * 
+     * @param position
+     * @param path
+     * @param rank
+     * @param graph
+     */
     protected StepPositionIRI(long position, P path, long rank, PathHandleGraphSail<P, S, ?, ?> graph) {
         this.position = position;
         this.path = path;
@@ -55,19 +68,39 @@ public abstract class StepPositionIRI<P extends PathHandle, S extends StepHandle
         this.graph = graph;
     }
 
+    /**
+     * 
+     * @return the path
+     */
     public P path() {
         return path;
     }
 
+    /**
+     * 
+     * @return the rank
+     */
     public long rank() {
         return rank;
     }
 
+    /**
+     * 
+     * @return if the position is cached
+     */
     protected boolean hasCachedPosition() {
         return position != POSITION_NOT_SET;
     }
 
+    /**
+     * 
+     * @return the endposition
+     */
     public abstract long getEndPosition();
 
+    /**
+     * 
+     * @return the begin position
+     */
     public abstract long getBeginPosition();
 }

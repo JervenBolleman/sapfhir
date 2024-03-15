@@ -64,7 +64,14 @@ import swiss.sib.swissprot.sapfhir.values.StepPositionIRI;
  */
 public class StepPositionStatementProvider<P extends PathHandle, S extends StepHandle, N extends NodeHandle, E extends EdgeHandle<N>> implements StatementProvider {
 
+	/**
+	 * The backing value factory
+	 */
     private final HandleGraphValueFactory<P, S, N, E> vf;
+    
+    /**
+     * the backing sail
+     */
     private final PathHandleGraphSail<P, S, N, E> sail;
 
     public StepPositionStatementProvider(PathHandleGraphSail<P, S, N, E> sail, HandleGraphValueFactory<P, S, N, E> vf) {

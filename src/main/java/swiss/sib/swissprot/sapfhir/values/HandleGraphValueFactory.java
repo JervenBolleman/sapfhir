@@ -54,6 +54,9 @@ import swiss.sib.swissprot.sapfhir.sparql.PathHandleGraphSail;
  */
 public class HandleGraphValueFactory<P extends PathHandle, S extends StepHandle, N extends NodeHandle, E extends EdgeHandle<N>> implements ValueFactory {
 
+	/**
+	 * backing graph
+	 */
     private final PathHandleGraphSail<P, S, N, E> graph;
 
     public HandleGraphValueFactory(PathHandleGraphSail<P, S, N, E> graph) {

@@ -230,7 +230,7 @@ public class PathHandleGraphTripleSailConnection<P extends PathHandle, S extends
                     new QueryModelNormalizer(),
                     new QueryJoinOptimizer(ev),
                     new IterativeEvaluationOptimizer(),
-                    new FilterOptimizer(),
+//                    new FilterOptimizer(),
                     new ProjectionRemovalOptimizer()
             );
         }

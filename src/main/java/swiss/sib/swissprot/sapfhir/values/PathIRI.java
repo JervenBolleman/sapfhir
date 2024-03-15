@@ -37,7 +37,13 @@ public class PathIRI<P extends PathHandle> implements IRI {
 	private static final long serialVersionUID = 1;
 
     private static final ValueFactory VF = SimpleValueFactory.getInstance();
+    /**
+     * The path identified
+     */
     private final P pathId;
+    /**
+     * The backing graph
+     */
     private final PathHandleGraphSail<P, ?, ?, ?> graph;
 
     public PathIRI(P pathId, PathHandleGraphSail<P, ?, ?, ?> graph) {
@@ -84,7 +90,7 @@ public class PathIRI<P extends PathHandle> implements IRI {
         }
         if (obj instanceof PathIRI<?>) {
             final PathIRI<?> other = (PathIRI<?>) obj;
-            if (this.pathId.equals(other.pathId)) {
+            if (!this.pathId.equals(other.pathId)) {
                 return false;
             }
             if (!Objects.equals(this.graph, other.graph)) {

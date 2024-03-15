@@ -34,7 +34,13 @@ import swiss.sib.swissprot.sapfhir.sparql.PathHandleGraphSail;
 public class NodeIRI<N extends NodeHandle> implements IRI {
 	private static final long serialVersionUID = 1;
 
+	/**
+	 * nodeId
+	 */
     private final long nodeId;
+    /**
+     * The backing graph
+     */
     private final PathHandleGraphSail<?, ?, N, ?> graph;
 
     public NodeIRI(long nodeId, PathHandleGraphSail<?, ?, N, ?> graph) {

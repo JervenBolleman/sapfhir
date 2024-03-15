@@ -22,6 +22,7 @@ package swiss.sib.swissprot.sapfhir.statements;
 import static io.github.jervenbolleman.handlegraph4j.iterators.AutoClosedIterator.concat;
 import static io.github.jervenbolleman.handlegraph4j.iterators.AutoClosedIterator.of;
 import static swiss.sib.swissprot.sapfhir.statements.StatementProvider.filter;
+import static swiss.sib.swissprot.sapfhir.statements.StatementProvider.pathIriFromIri;
 import static swiss.sib.swissprot.sapfhir.statements.StatementProvider.stepIriFromIri;
 
 import java.util.Set;
@@ -56,7 +57,14 @@ import swiss.sib.swissprot.sapfhir.values.StepIRI;
  */
 public class StepRelatedStatementProvider<P extends PathHandle, S extends StepHandle, N extends NodeHandle, E extends EdgeHandle<N>> implements StatementProvider {
 
+	/**
+	 * Value factory for literals and iris
+	 */
     private final HandleGraphValueFactory<P, S, N, E> vf;
+    
+    /**
+     * backing sail
+     */
     private final PathHandleGraphSail<P, S, N, E> sail;
 
     public StepRelatedStatementProvider(PathHandleGraphSail<P, S, N, E> sail, HandleGraphValueFactory<P, S, N, E> vf) {
@@ -91,6 +99,8 @@ public class StepRelatedStatementProvider<P extends PathHandle, S extends StepHa
             } else if (iri.stringValue().contains("/step/")) {
                 //TODO: Test if it can be a StepBegin Or StepEnd by pattern
                 return true;
+            } else if (pathIriFromIri((IRI) val, sail) != null) {
+            	return true;
             }
         } else if (val instanceof Literal) {
             Literal lit = (Literal) val;

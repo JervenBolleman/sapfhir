@@ -43,6 +43,9 @@ import io.github.jervenbolleman.handlegraph4j.sequences.Sequence;
 public class SequenceLiteral<N extends NodeHandle, E extends EdgeHandle<N>> implements Literal {
 	private static final long serialVersionUID = 1;
 
+	/**
+	 * The sequence wrapped as a literal
+	 */
     private final Sequence s;
 
     

@@ -34,39 +34,74 @@ import swiss.sib.swissprot.sapfhir.sparql.PathHandleGraphSail;
 public class StepIRI<P extends PathHandle> implements IRI {
 
 	private static final long serialVersionUID = 1;
+	/**
+	 * the path behind the step
+	 */
     private final P path;
+    /**
+     * The rank
+     */
     private final long rank;
+    /**
+     * the graph sail 
+     */
     private final PathHandleGraphSail<P, ?, ?, ?> graph;
 
+    /**
+     * 
+     * @param pathId
+     * @param rank
+     * @param graph
+     */
     public StepIRI(P pathId, long rank, PathHandleGraphSail<P, ?, ?, ?> graph) {
         this.path = pathId;
         this.rank = rank;
         this.graph = graph;
     }
 
+    /**
+     * @return the namespace
+     */
     @Override
     public String getNamespace() {
         return graph.getPathNameSpace(path) + "/step/";
     }
 
+    /**
+     * 
+     */
     @Override
     public String getLocalName() {
         return Long.toString(rank);
     }
 
+    /**
+     * @return as string
+     */
     @Override
     public String stringValue() {
         return getNamespace() + '/' + getLocalName();
     }
 
+    /**
+     * 
+     * @return rank
+     */
     public long rank() {
         return rank;
     }
 
+    /**
+     * 
+     * @return path
+     */
     public P path() {
         return path;
     }
 
+    /**
+     * @return as string
+     */
     @Override
     public String toString() {
         return stringValue();

@@ -543,4 +543,32 @@ public class PathHandleGraphSailTest {
 			evaluate(select_node_WHERE_node_a_vgNode, connection, test);
 		}
 	}
+	
+	@Test
+	public void testStepPathQueries() {
+		SailRepository instance = getSailRepository();
+		String allSteps = "SELECT ?step WHERE {?step a vg:Step}";
+		String allStepsHaveARank = "SELECT ?step WHERE {?path a vg:Path . ?step vg:path ?path .}";
+
+		Consumer<TupleQueryResult> test = r -> {
+			for (int i = 0; i < 11; i++) {
+				assertTrue(r.hasNext(), "at i:" + i);
+				BindingSet next = r.next();
+				assertNotNull(next);
+				Value step = next.getValue("step");
+				assertNotNull(step);
+				assertTrue(step instanceof StepIRI);
+				StepIRI<?> stepIri = (StepIRI<?>) step;
+				assertEquals(stepIri.rank(), i);
+			}
+			assertFalse(r.hasNext());
+		};
+		try (RepositoryConnection connection = instance.getConnection()) {
+
+			evaluate(allSteps, connection, test);
+
+			evaluate(allStepsHaveARank, connection, test);
+
+		}
+	}
 }
