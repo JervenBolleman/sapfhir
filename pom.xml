@@ -5,7 +5,7 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>io.github.jervenbolleman</groupId>
 	<artifactId>sapfhir</artifactId>
-	<version>0.1</version>
+	<version>0.2-SNAPSHOT</version>
 	<packaging>jar</packaging>
 	<licenses>
 		<license>
@@ -92,7 +92,7 @@
 					</execution>
 				</executions>
 			</plugin>
-			<plugin>
+			<!--<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-javadoc-plugin</artifactId>
 				<version>3.6.0</version>
@@ -104,7 +104,7 @@
 						</goals>
 					</execution>
 				</executions>
-			</plugin>
+			</plugin>-->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-gpg-plugin</artifactId>
@@ -129,7 +129,7 @@
 		<java.version>17</java.version>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<maven.compiler.release>17</maven.compiler.release>
-		<eclipse.rdf4j.version>4.3.7</eclipse.rdf4j.version>
+		<eclipse.rdf4j.version>5.0.0-M2</eclipse.rdf4j.version>
 	</properties>
 
 	<dependencies>
@@ -147,6 +147,11 @@
 		<dependency>
 			<groupId>org.eclipse.rdf4j</groupId>
 			<artifactId>rdf4j-queryalgebra-evaluation</artifactId>
+			<version>${eclipse.rdf4j.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.eclipse.rdf4j</groupId>
+			<artifactId>rdf4j-collection-factory-mapdb3</artifactId>
 			<version>${eclipse.rdf4j.version}</version>
 		</dependency>
 		<dependency>

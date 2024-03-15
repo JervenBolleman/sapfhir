@@ -198,15 +198,12 @@ public class HandleGraphValueFactory<P extends PathHandle, S extends StepHandle,
 
 	@Override
 	public Literal createLiteral(String label, CoreDatatype datatype) {
-//		// TODO Auto-generated method stub
-//		return null;
-		throw new UnsupportedOperationException();
+		return getInstance().createLiteral(label, datatype);
 	}
 
 	@Override
 	public Literal createLiteral(String label, IRI datatype, CoreDatatype coreDatatype) {
-//		// TODO Auto-generated method stub
-		throw new UnsupportedOperationException();
+		return getInstance().createLiteral(label, datatype, coreDatatype);
 	}
     
     

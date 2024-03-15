@@ -19,9 +19,13 @@
  */
 package swiss.sib.swissprot.sapfhir.sparql;
 
+import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import org.eclipse.rdf4j.collection.factory.api.CollectionFactory;
+import org.eclipse.rdf4j.collection.factory.impl.DefaultCollectionFactory;
+import org.eclipse.rdf4j.collection.factory.mapdb.MapDb3CollectionFactory;
 import org.eclipse.rdf4j.sail.SailException;
 import org.eclipse.rdf4j.sail.helpers.AbstractSail;
 
@@ -213,5 +217,10 @@ public class PathHandleGraphSail<P extends PathHandle, S extends StepHandle, N e
     String getBase() {
         return base;
     }
+
+	@Override
+	public Supplier<CollectionFactory> getCollectionFactory() {
+		return () -> new MapDb3CollectionFactory(getIterationCacheSyncThreshold(), new DefaultCollectionFactory());
+	}
 
 }

@@ -72,7 +72,7 @@ public class PathHandleGraphTripleSource<P extends PathHandle, S extends StepHan
     }
 
     @Override
-    public CloseableIteration<? extends Statement, QueryEvaluationException>
+    public CloseableIteration<? extends Statement>
             getStatements(Resource subject,
                     IRI predicate,
                     Value object,
@@ -110,7 +110,7 @@ public class PathHandleGraphTripleSource<P extends PathHandle, S extends StepHan
     }
 
     private static class CloseableIterationFromAutoClosedIterator
-            implements CloseableIteration<Statement, QueryEvaluationException> {
+            implements CloseableIteration<Statement> {
 
         private final AutoClosedIterator<Statement> providedAsIter;
         private Statement last;

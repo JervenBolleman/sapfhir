@@ -37,21 +37,21 @@ import org.eclipse.rdf4j.query.BindingSet;
 import org.eclipse.rdf4j.query.Dataset;
 import org.eclipse.rdf4j.query.QueryEvaluationException;
 import org.eclipse.rdf4j.query.algebra.TupleExpr;
+import org.eclipse.rdf4j.query.algebra.evaluation.EvaluationStrategy;
 import org.eclipse.rdf4j.query.algebra.evaluation.QueryOptimizer;
 import org.eclipse.rdf4j.query.algebra.evaluation.QueryOptimizerPipeline;
-import org.eclipse.rdf4j.query.algebra.evaluation.impl.BindingAssigner;
-import org.eclipse.rdf4j.query.algebra.evaluation.impl.CompareOptimizer;
-import org.eclipse.rdf4j.query.algebra.evaluation.impl.ConjunctiveConstraintSplitter;
-import org.eclipse.rdf4j.query.algebra.evaluation.impl.ConstantOptimizer;
-import org.eclipse.rdf4j.query.algebra.evaluation.impl.DisjunctiveConstraintOptimizer;
-import org.eclipse.rdf4j.query.algebra.evaluation.impl.FilterOptimizer;
-import org.eclipse.rdf4j.query.algebra.evaluation.impl.IterativeEvaluationOptimizer;
-import org.eclipse.rdf4j.query.algebra.evaluation.impl.ProjectionRemovalOptimizer;
-import org.eclipse.rdf4j.query.algebra.evaluation.impl.QueryJoinOptimizer;
-import org.eclipse.rdf4j.query.algebra.evaluation.impl.QueryModelNormalizer;
-import org.eclipse.rdf4j.query.algebra.evaluation.impl.RegexAsStringFunctionOptimizer;
-import org.eclipse.rdf4j.query.algebra.evaluation.impl.SameTermFilterOptimizer;
-import org.eclipse.rdf4j.query.algebra.evaluation.impl.StrictEvaluationStrategy;
+import org.eclipse.rdf4j.query.algebra.evaluation.impl.DefaultEvaluationStrategy;
+import org.eclipse.rdf4j.query.algebra.evaluation.optimizer.BindingAssignerOptimizer;
+import org.eclipse.rdf4j.query.algebra.evaluation.optimizer.CompareOptimizer;
+import org.eclipse.rdf4j.query.algebra.evaluation.optimizer.ConjunctiveConstraintSplitterOptimizer;
+import org.eclipse.rdf4j.query.algebra.evaluation.optimizer.ConstantOptimizer;
+import org.eclipse.rdf4j.query.algebra.evaluation.optimizer.DisjunctiveConstraintOptimizer;
+import org.eclipse.rdf4j.query.algebra.evaluation.optimizer.IterativeEvaluationOptimizer;
+import org.eclipse.rdf4j.query.algebra.evaluation.optimizer.ProjectionRemovalOptimizer;
+import org.eclipse.rdf4j.query.algebra.evaluation.optimizer.QueryJoinOptimizer;
+import org.eclipse.rdf4j.query.algebra.evaluation.optimizer.QueryModelNormalizerOptimizer;
+import org.eclipse.rdf4j.query.algebra.evaluation.optimizer.RegexAsStringFunctionOptimizer;
+import org.eclipse.rdf4j.query.algebra.evaluation.optimizer.SameTermFilterOptimizer;
 import org.eclipse.rdf4j.repository.sparql.federation.SPARQLServiceResolver;
 import org.eclipse.rdf4j.sail.SailException;
 import org.eclipse.rdf4j.sail.helpers.AbstractSailConnection;
@@ -88,7 +88,7 @@ public class PathHandleGraphTripleSailConnection<P extends PathHandle, S extends
     }
 
     @Override
-    protected CloseableIteration<? extends BindingSet, QueryEvaluationException> evaluateInternal(TupleExpr tupleExpr,
+    protected CloseableIteration<? extends BindingSet> evaluateInternal(TupleExpr tupleExpr,
             Dataset dataset,
             BindingSet bindings,
             boolean includeInferred) throws SailException {
@@ -103,8 +103,8 @@ public class PathHandleGraphTripleSailConnection<P extends PathHandle, S extends
         }
     }
 
-    StrictEvaluationStrategy evalutationStrategy(PathHandleGraphTripleSource<P, S, N, E> tripleSource) {
-        return new StrictEvaluationStrategy(tripleSource, fd);
+    EvaluationStrategy evalutationStrategy(PathHandleGraphTripleSource<P, S, N, E> tripleSource) {
+        return new DefaultEvaluationStrategy(tripleSource, fd);
     }
 
     PathHandleGraphTripleSource<P, S, N, E> tripleSource() {
@@ -112,7 +112,7 @@ public class PathHandleGraphTripleSailConnection<P extends PathHandle, S extends
         return tripleSource;
     }
 
-    TupleExpr optimize(PathHandleGraphTripleSource<P, S, N, E> tripleSource, StrictEvaluationStrategy strategy, TupleExpr tupleExpr, BindingSet bindings) {
+    TupleExpr optimize(PathHandleGraphTripleSource<P, S, N, E> tripleSource, EvaluationStrategy strategy, TupleExpr tupleExpr, BindingSet bindings) {
         var evStats = new PathHandleEvaluationStatistics<>(tripleSource);
         var queryOptimizer = new PathHandleQueryOptimizerPipeline<>(strategy,
                 tripleSource, evStats);
@@ -122,12 +122,12 @@ public class PathHandleGraphTripleSailConnection<P extends PathHandle, S extends
     }
 
     @Override
-    protected CloseableIteration<? extends Resource, SailException> getContextIDsInternal() throws SailException {
+    protected CloseableIteration<? extends Resource> getContextIDsInternal() throws SailException {
         return new EmptyIteration<>();
     }
 
     @Override
-    protected CloseableIteration<? extends Statement, SailException> getStatementsInternal(Resource subj, IRI pred, Value obj, boolean includeInferred, Resource... contexts) throws SailException {
+    protected CloseableIteration<? extends Statement> getStatementsInternal(Resource subj, IRI pred, Value obj, boolean includeInferred, Resource... contexts) throws SailException {
         throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
     }
 
@@ -167,7 +167,7 @@ public class PathHandleGraphTripleSailConnection<P extends PathHandle, S extends
     }
 
     @Override
-    protected CloseableIteration<? extends Namespace, SailException> getNamespacesInternal() throws SailException {
+    protected CloseableIteration<? extends Namespace> getNamespacesInternal() throws SailException {
         Iterator<SimpleNamespace> ns = List.of(new SimpleNamespace(FALDO.PREFIX, FALDO.NAMESPACE),
                 new SimpleNamespace(VG.PREFIX, VG.NAMESPACE),
                 new SimpleNamespace(RDFS.PREFIX, RDFS.NAMESPACE))
@@ -205,11 +205,11 @@ public class PathHandleGraphTripleSailConnection<P extends PathHandle, S extends
     private static class PathHandleQueryOptimizerPipeline<P extends PathHandle, S extends StepHandle, N extends NodeHandle, E extends EdgeHandle<N>> implements QueryOptimizerPipeline {
 
         private final PathHandleGraphTripleSource<P, S, N, E> ts;
-        private final StrictEvaluationStrategy strategy;
+        private final EvaluationStrategy strategy;
         private final PathHandleEvaluationStatistics<P, S, N, E> ev;
 
         public PathHandleQueryOptimizerPipeline(
-                StrictEvaluationStrategy strategy,
+        		EvaluationStrategy strategy,
                 PathHandleGraphTripleSource<P, S, N, E> ts,
                 PathHandleEvaluationStatistics<P, S, N, E> ev) {
             this.ts = ts;
@@ -220,14 +220,14 @@ public class PathHandleGraphTripleSailConnection<P extends PathHandle, S extends
         @Override
         public Iterable<QueryOptimizer> getOptimizers() {
             return Arrays.asList(
-                    new BindingAssigner(),
+                    new BindingAssignerOptimizer(),
                     new ConstantOptimizer(strategy),
                     new RegexAsStringFunctionOptimizer(ts.getValueFactory()),
                     new CompareOptimizer(),
-                    new ConjunctiveConstraintSplitter(),
+                    new ConjunctiveConstraintSplitterOptimizer(),
                     new DisjunctiveConstraintOptimizer(),
                     new SameTermFilterOptimizer(),
-                    new QueryModelNormalizer(),
+                    new QueryModelNormalizerOptimizer(),
                     new QueryJoinOptimizer(ev),
                     new IterativeEvaluationOptimizer(),
 //                    new FilterOptimizer(),
