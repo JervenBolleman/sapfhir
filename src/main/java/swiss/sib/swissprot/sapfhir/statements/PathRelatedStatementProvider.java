@@ -111,7 +111,7 @@ public class PathRelatedStatementProvider<P extends PathHandle, S extends StepHa
         if (object instanceof BNode || object instanceof Literal) {
             return empty();
         }
-        Statement stat = vf.createStatement(pathIRI, RDF.TYPE, VG.Path);
+        Statement stat = new HandleGraphValueFactory.UnsafeStatement(pathIRI, RDF.TYPE, VG.Path);
         AutoClosedIterator<Statement> stream = of(stat);
         return filter(object, stream);
     }
@@ -123,7 +123,7 @@ public class PathRelatedStatementProvider<P extends PathHandle, S extends StepHa
         }
         String nameOfPath = sail.pathGraph().nameOfPath(pathIRI.path());
         Literal label = vf.createLiteral(nameOfPath);
-        Statement stat = vf.createStatement(pathIRI, RDFS.LABEL, label);
+        Statement stat = new HandleGraphValueFactory.UnsafeStatement(pathIRI, RDFS.LABEL, label);
 
         AutoClosedIterator<Statement> stream = of(stat);
         return filter(object, stream);

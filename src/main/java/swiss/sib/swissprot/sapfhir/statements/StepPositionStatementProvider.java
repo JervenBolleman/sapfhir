@@ -156,8 +156,8 @@ public class StepPositionStatementProvider<P extends PathHandle, S extends StepH
             return AutoClosedIterator.empty();
         }
         AutoClosedIterator<Statement> stream = concat(
-                of(vf.createStatement(subject, RDF.TYPE, FALDO.Position)),
-                of(vf.createStatement(subject, RDF.TYPE, FALDO.ExactPosition)));
+                of(new HandleGraphValueFactory.UnsafeStatement(subject, RDF.TYPE, FALDO.Position)),
+                of(new HandleGraphValueFactory.UnsafeStatement(subject, RDF.TYPE, FALDO.ExactPosition)));
         if (object == null) {
             return stream;
         } else {
@@ -171,7 +171,7 @@ public class StepPositionStatementProvider<P extends PathHandle, S extends StepH
             return AutoClosedIterator.empty();
         }
         PathIRI<P> pathIRI = new PathIRI<>(subject.path(), sail);
-        Statement stat = vf.createStatement(subject, VG.path, pathIRI);
+        Statement stat = new HandleGraphValueFactory.UnsafeStatement(subject, VG.path, pathIRI);
         var stream = AutoClosedIterator.of(stat);
         return filter(object, stream);
     }
@@ -185,11 +185,11 @@ public class StepPositionStatementProvider<P extends PathHandle, S extends StepH
         if (subject instanceof StepBeginPositionIRI) {
             long position = ((StepBeginPositionIRI<?,?>) subject).getBeginPosition();
             var l = vf.createLiteral(position);
-            stream = AutoClosedIterator.of(vf.createStatement(subject, FALDO.position, l));
+            stream = AutoClosedIterator.of(new HandleGraphValueFactory.UnsafeStatement(subject, FALDO.position, l));
         } else if (subject instanceof StepEndPositionIRI) {
             long position = ((StepEndPositionIRI<?,?>) subject).getEndPosition();
             var l = vf.createLiteral(position);
-            stream = AutoClosedIterator.of(vf.createStatement(subject, FALDO.position, l));
+            stream = AutoClosedIterator.of(new HandleGraphValueFactory.UnsafeStatement(subject, FALDO.position, l));
         } else {
             return AutoClosedIterator.empty();
         }

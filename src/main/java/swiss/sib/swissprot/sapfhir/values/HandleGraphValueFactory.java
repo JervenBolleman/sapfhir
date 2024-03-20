@@ -176,19 +176,11 @@ public class HandleGraphValueFactory<P extends PathHandle, S extends StepHandle,
 
     @Override
     public Statement createStatement(Resource subject, IRI predicate, Value object) {
-        if (subject == null || predicate == null || object == null) {
-            throw new NullPointerException("somethings null"
-                    + subject + ':' + predicate + ':' + object);
-        }
-        return getInstance().createStatement(subject, predicate, object);
+    	return getInstance().createStatement(subject, predicate, object);
     }
 
     @Override
     public Statement createStatement(Resource subject, IRI predicate, Value object, Resource context) {
-        if (subject == null || predicate == null || object == null) {
-            throw new NullPointerException("somethings null"
-                    + subject + ':' + predicate + ':' + object);
-        }
         return getInstance().createStatement(subject, predicate, object, context);
     }
 
@@ -205,6 +197,62 @@ public class HandleGraphValueFactory<P extends PathHandle, S extends StepHandle,
 	public Literal createLiteral(String label, IRI datatype, CoreDatatype coreDatatype) {
 		return getInstance().createLiteral(label, datatype, coreDatatype);
 	}
-    
-    
+
+	/**
+     * Only to be used when we know that the values are good.
+     */
+	public static record UnsafeStatement(Resource subject, IRI predicate, Value object) implements Statement {
+
+		private static final long serialVersionUID = 1L;
+
+		@Override
+		public Resource getSubject() {
+			return subject;
+		}
+
+		@Override
+		public IRI getPredicate() {
+			return predicate;
+		}
+
+		@Override
+		public Value getObject() {
+			return object;
+		}
+
+		@Override
+		public Resource getContext() {
+			return null;
+		}
+
+		@Override
+		public boolean equals(Object o) {
+			if (this == o) {
+				return true;
+			}
+
+			if (!(o instanceof Statement)) {
+				return false;
+			}
+
+			Statement that = (Statement) o;
+
+			return subject.equals(that.getSubject()) && predicate.equals(that.getPredicate())
+					&& object.equals(that.getObject()) && that.getContext() == null;
+		}
+
+		@Override
+		public int hashCode() {
+			int result = 31 + subject.hashCode();
+			result = 31 * result + predicate.hashCode();
+			result = 31 * result + object.hashCode();
+			return result;
+		}
+
+		@Override
+		public String toString() {
+			return "(" + subject + ", " + predicate + ", " + object + ") [" + null + "]";
+		}
+
+	}
 }

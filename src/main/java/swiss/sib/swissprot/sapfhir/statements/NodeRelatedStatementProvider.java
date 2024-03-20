@@ -130,7 +130,7 @@ public class NodeRelatedStatementProvider<P extends PathHandle, S extends StepHa
                 AutoClosedIterator<N> nodes = sail.pathGraph().nodes();
                 return map(nodes, (n) -> {
                     var ni = new NodeIRI<>(n.id(), sail);
-                    return vf.createStatement(ni, RDF.TYPE, VG.Node);
+                    return new HandleGraphValueFactory.UnsafeStatement(ni, RDF.TYPE, VG.Node);
                 });
             }
         }
@@ -204,7 +204,7 @@ public class NodeRelatedStatementProvider<P extends PathHandle, S extends StepHa
         } else if (RDF.VALUE.equals(predicate)) {
         	Literal sequence = p.get();
         	if (object == null || sequence.equals(object)) {
-        		return of(vf.createStatement(nodeSubject, RDF.VALUE, sequence));
+        		return of(new HandleGraphValueFactory.UnsafeStatement(nodeSubject, RDF.VALUE, sequence));
         	} else
         		return empty();
         	
@@ -214,7 +214,7 @@ public class NodeRelatedStatementProvider<P extends PathHandle, S extends StepHa
             statements[0] = nodeTypeStatement(nodeSubject);
         }
         Literal sequence = p.get();
-        Statement nodeValueStatement = vf.createStatement(nodeSubject, RDF.VALUE, sequence);
+        Statement nodeValueStatement = new HandleGraphValueFactory.UnsafeStatement(nodeSubject, RDF.VALUE, sequence);
         statements[1] = nodeValueStatement;
         
         var i = from(Arrays.asList(statements[0], statements[1]).iterator());
@@ -229,7 +229,7 @@ public class NodeRelatedStatementProvider<P extends PathHandle, S extends StepHa
     }
 
     private Statement nodeTypeStatement(NodeIRI<N> nodeSubject) {
-        return vf.createStatement(nodeSubject, RDF.TYPE, VG.Node);
+        return new HandleGraphValueFactory.UnsafeStatement(nodeSubject, RDF.TYPE, VG.Node);
     }
 
     private AutoClosedIterator<Statement> linksForNode(N node, IRI predicate, NodeIRI<N> object) {
@@ -269,12 +269,12 @@ public class NodeRelatedStatementProvider<P extends PathHandle, S extends StepHa
     }
 
     private Statement links(E edge) {
-        return vf.createStatement(new NodeIRI<>(sail.pathGraph().asLong(edge.left()), sail), VG.links, new NodeIRI<>(sail.pathGraph().asLong(edge.right()), sail));
+        return new HandleGraphValueFactory.UnsafeStatement(new NodeIRI<>(sail.pathGraph().asLong(edge.left()), sail), VG.links, new NodeIRI<>(sail.pathGraph().asLong(edge.right()), sail));
     }
 
     private Statement forwardToForward(E edge) {
         if (!sail.pathGraph().isReverseNodeHandle(edge.left()) && !sail.pathGraph().isReverseNodeHandle(edge.right())) {
-            return vf.createStatement(new NodeIRI<>(sail.pathGraph().asLong(edge.left()), sail), VG.linksForwardToForward, new NodeIRI<>(sail.pathGraph().asLong(edge.right()), sail));
+            return new HandleGraphValueFactory.UnsafeStatement(new NodeIRI<>(sail.pathGraph().asLong(edge.left()), sail), VG.linksForwardToForward, new NodeIRI<>(sail.pathGraph().asLong(edge.right()), sail));
         } else {
             return null;
         }
@@ -282,7 +282,7 @@ public class NodeRelatedStatementProvider<P extends PathHandle, S extends StepHa
 
     private Statement forwardToReverse(E edge) {
         if (!sail.pathGraph().isReverseNodeHandle(edge.left()) && sail.pathGraph().isReverseNodeHandle(edge.right())) {
-            return vf.createStatement(new NodeIRI<>(sail.pathGraph().asLong(edge.left()), sail), VG.linksForwardToReverse, new NodeIRI<>(sail.pathGraph().asLong(edge.right()), sail));
+            return new HandleGraphValueFactory.UnsafeStatement(new NodeIRI<>(sail.pathGraph().asLong(edge.left()), sail), VG.linksForwardToReverse, new NodeIRI<>(sail.pathGraph().asLong(edge.right()), sail));
         } else {
             return null;
         }
@@ -290,7 +290,7 @@ public class NodeRelatedStatementProvider<P extends PathHandle, S extends StepHa
 
     private Statement reverseToReverse(E edge) {
         if (sail.pathGraph().isReverseNodeHandle(edge.left()) && sail.pathGraph().isReverseNodeHandle(edge.right())) {
-            return vf.createStatement(new NodeIRI<>(sail.pathGraph().asLong(edge.left()), sail), VG.linksReverseToReverse, new NodeIRI<>(sail.pathGraph().asLong(edge.right()), sail));
+            return new HandleGraphValueFactory.UnsafeStatement(new NodeIRI<>(sail.pathGraph().asLong(edge.left()), sail), VG.linksReverseToReverse, new NodeIRI<>(sail.pathGraph().asLong(edge.right()), sail));
         } else {
             return null;
         }
@@ -298,7 +298,7 @@ public class NodeRelatedStatementProvider<P extends PathHandle, S extends StepHa
 
     private Statement reverseToForward(E edge) {
         if (sail.pathGraph().isReverseNodeHandle(edge.left()) && !sail.pathGraph().isReverseNodeHandle(edge.right())) {
-            return vf.createStatement(new NodeIRI<>(sail.pathGraph().asLong(edge.left()), sail), VG.linksReverseToForward, new NodeIRI<>(sail.pathGraph().asLong(edge.right()), sail));
+            return new HandleGraphValueFactory.UnsafeStatement(new NodeIRI<>(sail.pathGraph().asLong(edge.left()), sail), VG.linksReverseToForward, new NodeIRI<>(sail.pathGraph().asLong(edge.right()), sail));
         } else {
             return null;
         }
