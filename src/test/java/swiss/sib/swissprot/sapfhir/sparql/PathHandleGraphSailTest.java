@@ -26,6 +26,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Arrays;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
@@ -60,6 +61,7 @@ import swiss.sib.swissprot.handlegraph4jrdf.FALDO;
 import swiss.sib.swissprot.handlegraph4jrdf.VG;
 import swiss.sib.swissprot.sapfhir.values.HandleGraphValueFactory;
 import swiss.sib.swissprot.sapfhir.values.StepBeginPositionIRI;
+import swiss.sib.swissprot.sapfhir.values.StepEndPositionIRI;
 import swiss.sib.swissprot.sapfhir.values.StepIRI;
 
 /**
@@ -315,10 +317,10 @@ public class PathHandleGraphSailTest {
 		};
 		assertEquals(15, spg.nodeCount());
 		String select_node_WHERE_node_a_vgNode = """
-				SELECT ?node ?id 
+				SELECT ?node ?id
 				WHERE {
-				?node a vg:Node . 
-				BIND(xsd:int(SUBSTR(STR(?node),28)) AS ?id)} 
+				?node a vg:Node .
+				BIND(xsd:int(SUBSTR(STR(?node),28)) AS ?id)}
 				ORDER BY ?id""";
 		try (RepositoryConnection connection = instance.getConnection()) {
 			evaluate(select_node_WHERE_node_a_vgNode, connection, test);
@@ -456,6 +458,42 @@ public class PathHandleGraphSailTest {
 	}
 
 	@Test
+	public void testStepEndQueries() {
+		SailRepository instance = getSailRepository();
+		Consumer<TupleQueryResult> test = r -> {
+			for (int i = 0; i < 11; i++) {
+				assertTrue(r.hasNext(), "at i:" + i);
+				BindingSet next = r.next();
+				Value begin = next.getBinding("end").getValue();
+				assertTrue(begin instanceof StepEndPositionIRI);
+
+				assertNotNull(next);
+			}
+			assertFalse(r.hasNext());
+		};
+
+		Consumer<TupleQueryResult> test2 = r -> {
+			for (int i = 0; i < 11; i++) {
+				assertTrue(r.hasNext(), "at i:" + i);
+				BindingSet next = r.next();
+				Value begin = next.getBinding("end").getValue();
+				assertTrue(begin instanceof Literal);
+				long pos = ((Literal) begin).longValue();
+				assertTrue(pos >= 0);
+				assertNotNull(next);
+			}
+			assertFalse(r.hasNext());
+		};
+		String endIris = "SELECT ?end WHERE {?step a vg:Step ; faldo:end ?end}";
+		String endPositions = "SELECT ?end WHERE {?step a vg:Step ; faldo:end ?pos . ?pos faldo:position ?end}";
+		try (RepositoryConnection connection = instance.getConnection()) {
+
+			evaluate(endIris, connection, test);
+			evaluate(endPositions, connection, test2);
+		}
+	}
+
+	@Test
 	public void testPathQueries() {
 		SailRepository instance = getSailRepository();
 		String paths = "SELECT ?path WHERE {?path a vg:Path}";
@@ -502,6 +540,34 @@ public class PathHandleGraphSailTest {
 		}
 	}
 
+	@Test
+	public void testNodeLinks() {
+		SailRepository instance = getSailRepository();
+		Map<IRI, Integer> expected = Map.of(instance.getValueFactory().createIRI(EXAMPLE_BASE, "path/x/step/6"), 3, instance.getValueFactory().createIRI(EXAMPLE_BASE, "path/x/step/2"), 3);
+		String nodeLinks = "SELECT ?step (COUNT(?node2) AS ?olinks) (COUNT(?node3) AS ?ilinks) WHERE { ?step vg:node ?node . ?node vg:links ?node2 . ?node2 vg:links ?node3 . } GROUP BY ?step ORDER BY ?step";
+
+		Consumer<TupleQueryResult> test = r -> {
+			for (int i = 0; i < 11; i++) {
+				assertTrue(r.hasNext(), "at i:" + i);
+				BindingSet next = r.next();
+				assertNotNull(next);
+				final Binding step = next.getBinding("step");
+				final Binding olinks = next.getBinding("olinks");
+				final Binding ilinks = next.getBinding("ilinks");
+				assertNotNull(step);
+				var exp = expected.get(step.getValue());
+				if (exp != null) {
+					assertEquals(exp, ((Literal) olinks.getValue()).intValue(), i + " " + step.toString());
+				}
+			}
+			assertFalse(r.hasNext());
+		};
+		try (RepositoryConnection connection = instance.getConnection()) {
+
+			evaluate(nodeLinks, connection, test);
+		}
+	}
+
 	private SailRepository getSailRepository() {
 		var pghs = getPathHandleGraphSail();
 		SailRepository instance = new SailRepository(pghs);
@@ -543,7 +609,7 @@ public class PathHandleGraphSailTest {
 			evaluate(select_node_WHERE_node_a_vgNode, connection, test);
 		}
 	}
-	
+
 	@Test
 	public void testStepPathQueries() {
 		SailRepository instance = getSailRepository();

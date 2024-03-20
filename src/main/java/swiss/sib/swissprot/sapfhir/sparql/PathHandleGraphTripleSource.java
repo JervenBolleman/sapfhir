@@ -49,19 +49,18 @@ import swiss.sib.swissprot.sapfhir.statements.StepRelatedStatementProvider;
 import swiss.sib.swissprot.sapfhir.values.HandleGraphValueFactory;
 
 /**
- * Generate the triples for the different possible values htat can be asked for.
+ * Generate the triples for the different possible values that can be asked for.
  *
  * @author <a href="mailto:jerven.bolleman@sib.swiss">Jerven Bolleman</a>
  * @param <P> the type of PathHandle
  * @param <S> the type of StepHandle
  * @param <E> the type of EdgeHandle
  * @param <N> the type of NodeHandle
+ * @param vf  value factory to create new literals
+ * @param statementProviders used to create statements from handlegraphs
  */
-public class PathHandleGraphTripleSource<P extends PathHandle, S extends StepHandle, N extends NodeHandle, E extends EdgeHandle<N>>
-		implements TripleSource {
-
-	private final HandleGraphValueFactory<P, S, N, E> vf;
-	private final List<StatementProvider> statementProviders;
+record PathHandleGraphTripleSource<P extends PathHandle, S extends StepHandle, N extends NodeHandle, E extends EdgeHandle<N>>(
+		HandleGraphValueFactory<P, S, N, E> vf, List<StatementProvider> statementProviders) implements TripleSource {
 
 	/**
 	 * A triple source for a certain sail
@@ -69,10 +68,9 @@ public class PathHandleGraphTripleSource<P extends PathHandle, S extends StepHan
 	 * @param sail the handlegraph backed sail we extract data from
 	 */
 	public PathHandleGraphTripleSource(PathHandleGraphSail<P, S, N, E> sail) {
-		this.vf = sail.getValueFactory();
-		this.statementProviders = List.of(new StepPositionStatementProvider<>(sail),
-				new NodeRelatedStatementProvider<>(sail), new StepRelatedStatementProvider<>(sail),
-				new PathRelatedStatementProvider<>(sail));
+		this(sail.getValueFactory(),
+				List.of(new StepPositionStatementProvider<>(sail), new NodeRelatedStatementProvider<>(sail),
+						new StepRelatedStatementProvider<>(sail), new PathRelatedStatementProvider<>(sail)));
 	}
 
 	@Override

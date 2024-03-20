@@ -20,14 +20,12 @@
 package swiss.sib.swissprot.sapfhir.statements;
 
 import static io.github.jervenbolleman.handlegraph4j.iterators.AutoClosedIterator.concat;
+import static io.github.jervenbolleman.handlegraph4j.iterators.AutoClosedIterator.empty;
 import static io.github.jervenbolleman.handlegraph4j.iterators.AutoClosedIterator.of;
-import static swiss.sib.swissprot.sapfhir.statements.StatementProvider.filter;
 import static swiss.sib.swissprot.sapfhir.statements.StatementProvider.pathIriFromIri;
 import static swiss.sib.swissprot.sapfhir.statements.StatementProvider.stepIriFromIri;
 
-import java.util.List;
 import java.util.Set;
-import java.util.function.BiFunction;
 
 import org.eclipse.rdf4j.model.BNode;
 import org.eclipse.rdf4j.model.IRI;
@@ -56,36 +54,17 @@ import swiss.sib.swissprot.sapfhir.values.StepIRI;
  * Provides the statements related to steps.
  *
  * @author <a href="mailto:jerven.bolleman@sib.swiss">Jerven Bolleman</a>
- * @param <P> the type of PathHandle
- * @param <S> the type of StepHandle
- * @param <E> the type of EdgeHandle
- * @param <N> the type of NodeHandle
+ * @param <P>  the type of PathHandle
+ * @param <S>  the type of StepHandle
+ * @param <E>  the type of EdgeHandle
+ * @param <N>  the type of NodeHandle
+ * @param sail the sail that this provides statements from
  */
-public final class StepRelatedStatementProvider<P extends PathHandle, S extends StepHandle, N extends NodeHandle, E extends EdgeHandle<N>>
-		implements StatementProvider {
-
-	private static final IRI[] KNOWN_PREDICATES = new IRI[] { RDF.TYPE, VG.rank, VG.node, VG.reverseOfNode, VG.path,
-			FALDO.begin, FALDO.end };
-	// A list of method handles to invoke in order of the above.
-	private final List<BiFunction<StepIRI<P>, Value, AutoClosedIterator<Statement>>> knownPredicateFunctions = List.of(
-			this::knownSubjectTypeStatement, this::knownSubjectRankStatements, this::knownSubjectNodeStatements,
-			this::knownSubjectReverseNodeStatements, this::knownSubjectPathStatements,
-			this::knownSubjectBeginStatements, this::knownSubjectEndStatements);
-	/**
-	 * backing sail
-	 */
-	private final PathHandleGraphSail<P, S, N, E> sail;
-
-	/**
-	 * A new StepStamentProvider for the sail and vf combination
-	 * 
-	 * @param sail the sail that this provides statements from
-	 **/
-	public StepRelatedStatementProvider(PathHandleGraphSail<P, S, N, E> sail) {
-		this.sail = sail;
-	}
+public record StepRelatedStatementProvider<P extends PathHandle, S extends StepHandle, N extends NodeHandle, E extends EdgeHandle<N>>(
+		PathHandleGraphSail<P, S, N, E> sail) implements StatementProvider {
 
 	private static final Set<IRI> stepAssociatedTypes = Set.of(FALDO.Region, VG.Step);
+
 	private static final Set<IRI> stepAssociatedPredicates = Set.of(RDF.TYPE, VG.rank, VG.path, VG.node,
 			VG.reverseOfNode, FALDO.begin, FALDO.end);
 
@@ -98,18 +77,20 @@ public final class StepRelatedStatementProvider<P extends PathHandle, S extends 
 	public boolean objectMightReturnValues(Value val) {
 		if (val instanceof StepBeginPositionIRI || val instanceof StepEndPositionIRI) {
 			return true;
-		} else if (val instanceof IRI) {
-			IRI iri = (IRI) val;
+		} else if (val instanceof IRI iri) {
 			if (stepAssociatedTypes.contains(iri)) {
+				return true;
+			} else if (pathIriFromIri(iri, sail) != null) {
+				return true;
+			} else if (stepIriFromIri(iri, sail) != null) {
+				return true;
+			} else if (StatementProvider.nodeIriFromIri(iri, sail) != null) {
 				return true;
 			} else if (iri.stringValue().contains("/step/")) {
 				// TODO: Test if it can be a StepBegin Or StepEnd by pattern
 				return true;
-			} else if (pathIriFromIri((IRI) val, sail) != null) {
-				return true;
 			}
-		} else if (val instanceof Literal) {
-			Literal lit = (Literal) val;
+		} else if (val instanceof Literal lit) {
 			return (XMLDatatypeUtil.isNumericDatatype(lit.getDatatype()));
 		}
 		return val == null;
@@ -129,7 +110,7 @@ public final class StepRelatedStatementProvider<P extends PathHandle, S extends 
 		} else if (subject instanceof IRI) {
 			return knownSubject((IRI) subject, predicate, object);
 		} else {
-			return AutoClosedIterator.empty();
+			return empty();
 		}
 	}
 
@@ -137,7 +118,7 @@ public final class StepRelatedStatementProvider<P extends PathHandle, S extends 
 		StepIRI<P> stepSubject = stepIriFromIri((IRI) subject, sail);
 		// If null it is not a Step IRI and therefore can't match the values here.
 		if (stepSubject == null) {
-			return AutoClosedIterator.empty();
+			return empty();
 		} else if (predicate == null) {
 			var typeStatement = knownSubjectTypeStatement(stepSubject, object);
 			var rankStatements = knownSubjectRankStatements(stepSubject, object);
@@ -157,13 +138,23 @@ public final class StepRelatedStatementProvider<P extends PathHandle, S extends 
 	}
 
 	private AutoClosedIterator<Statement> findByEquals(IRI predicate, Value object, StepIRI<P> stepSubject) {
-		for (int i = 0; i < KNOWN_PREDICATES.length; i++) {
-			IRI knownPredicate = KNOWN_PREDICATES[i];
-			if (knownPredicate.equals(predicate)) {
-				return knownPredicateFunctions.get(i).apply(stepSubject, object);
-			}
+		if (RDF.TYPE.equals(predicate)) {
+			return knownSubjectTypeStatement(stepSubject, object);
+		} else if (VG.rank.equals(predicate)) {
+			return knownSubjectRankStatements(stepSubject, object);
+		} else if (VG.node.equals(predicate)) {
+			return knownSubjectNodeStatements(stepSubject, object);
+		} else if (VG.reverseOfNode.equals(predicate)) {
+			return knownSubjectReverseNodeStatements(stepSubject, object);
+		} else if (VG.path.equals(predicate)) {
+			return knownSubjectPathStatements(stepSubject, object);
+		} else if (FALDO.begin.equals(predicate)) {
+			return knownSubjectBeginStatements(stepSubject, object);
+		} else if (FALDO.end.equals(predicate)) {
+			return knownSubjectEndStatements(stepSubject, object);
+		} else {
+			return empty();
 		}
-		return AutoClosedIterator.empty();
 	}
 
 	private AutoClosedIterator<Statement> findByIdentity(IRI predicate, Value object, StepIRI<P> stepSubject) {
@@ -188,89 +179,104 @@ public final class StepRelatedStatementProvider<P extends PathHandle, S extends 
 
 	private AutoClosedIterator<Statement> knownSubjectTypeStatement(StepIRI<P> subject, Value object) {
 		if (object instanceof Literal || object instanceof BNode) {
-			return AutoClosedIterator.empty();
+			return empty();
 		}
 		if (VG.Step.equals(object)) {
 			return of(new UnsafeStatement(subject, RDF.TYPE, VG.Step));
 		} else if (FALDO.Region.equals(object)) {
 			return of(new UnsafeStatement(subject, RDF.TYPE, FALDO.Region));
+		} else if (object == null) {
+			return of(new UnsafeStatement(subject, RDF.TYPE, VG.Step),
+					new UnsafeStatement(subject, RDF.TYPE, FALDO.Region));
 		} else {
-			AutoClosedIterator<Statement> stream = concat(of(new UnsafeStatement(subject, RDF.TYPE, VG.Step)),
-					of(new UnsafeStatement(subject, RDF.TYPE, FALDO.Region)));
-			return filter(object, stream);
+			return empty();
 		}
 	}
 
 	private AutoClosedIterator<Statement> knownSubjectRankStatements(StepIRI<P> stepSubject, Value object) {
 		if (object instanceof IRI || object instanceof BNode) {
-			return AutoClosedIterator.empty();
+			return empty();
 		}
-		AutoClosedIterator<Statement> stream = AutoClosedIterator.of(
-				new UnsafeStatement(stepSubject, VG.rank, sail.getValueFactory().createLiteral(stepSubject.rank())));
-		return filter(object, stream);
+		Literal rankLit = sail.getValueFactory().createLiteral(stepSubject.rank());
+		if (object == null || rankLit.equals(object)) {
+			return of(new UnsafeStatement(stepSubject, VG.rank, rankLit));
+		} else {
+			return empty();
+		}
 	}
 
 	private AutoClosedIterator<Statement> knownSubjectNodeStatements(StepIRI<P> stepSubject, Value object) {
 		if (object instanceof Literal || object instanceof BNode) {
-			return AutoClosedIterator.empty();
+			return empty();
 		}
 		S step = sail.pathGraph().stepByRankAndPath(stepSubject.path(), stepSubject.rank());
 		N node = sail.pathGraph().nodeOfStep(step);
 		if (sail.pathGraph().isReverseNodeHandle(node)) {
-			return AutoClosedIterator.empty();
+			return empty();
 		}
 		NodeIRI<N> nodeIRI = new NodeIRI<>(node.id(), sail);
-		AutoClosedIterator<Statement> stream = AutoClosedIterator
-				.of(new UnsafeStatement(stepSubject, VG.node, nodeIRI));
-		return filter(object, stream);
+		if (object == null || nodeIRI.equals(object)) {
+			return of(new UnsafeStatement(stepSubject, VG.node, nodeIRI));
+		} else {
+			return empty();
+		}
 	}
 
 	private AutoClosedIterator<Statement> knownSubjectReverseNodeStatements(StepIRI<P> stepSubject, Value object) {
 		if (object instanceof Literal || object instanceof BNode) {
-			return AutoClosedIterator.empty();
+			return empty();
 		}
 		S step = sail.pathGraph().stepByRankAndPath(stepSubject.path(), stepSubject.rank());
 		N node = sail.pathGraph().nodeOfStep(step);
 		if (!sail.pathGraph().isReverseNodeHandle(node)) {
-			return AutoClosedIterator.empty();
+			return empty();
 		}
 		NodeIRI<N> nodeIRI = new NodeIRI<>(node.id(), sail);
-		AutoClosedIterator<Statement> stream = AutoClosedIterator
-				.of(new UnsafeStatement(stepSubject, VG.reverseOfNode, nodeIRI));
-		return filter(object, stream);
+		if (object == null || nodeIRI.equals(object)) {
+			return of(new UnsafeStatement(stepSubject, VG.reverseOfNode, nodeIRI));
+		} else {
+			return empty();
+		}
 	}
 
 	private AutoClosedIterator<Statement> knownSubjectPathStatements(StepIRI<P> stepSubject, Value object) {
 		if (object instanceof Literal || object instanceof BNode) {
-			return AutoClosedIterator.empty();
+			return empty();
 		}
 		PathIRI<P> path = new PathIRI<>(stepSubject.path(), sail);
-		AutoClosedIterator<Statement> stream = AutoClosedIterator.of(new UnsafeStatement(stepSubject, VG.path, path));
-		return filter(object, stream);
+		if (object == null || path.equals(object)) {
+			return of(new UnsafeStatement(stepSubject, VG.path, path));
+		} else {
+			return empty();
+		}
 	}
 
 	private AutoClosedIterator<Statement> knownSubjectEndStatements(StepIRI<P> stepSubject, Value object) {
 		if (object instanceof Literal || object instanceof BNode) {
-			return AutoClosedIterator.empty();
+			return empty();
 		}
 		long rank = stepSubject.rank();
 		P path = stepSubject.path();
 		var beginIRI = new StepEndPositionIRI<>(path, rank, sail);
-		AutoClosedIterator<Statement> stream = AutoClosedIterator
-				.of(new UnsafeStatement(stepSubject, FALDO.begin, beginIRI));
-		return filter(object, stream);
+		if (object == null || beginIRI.equals(object)) {
+			return of(new UnsafeStatement(stepSubject, FALDO.end, beginIRI));
+		} else {
+			return empty();
+		}
 	}
 
 	private AutoClosedIterator<Statement> knownSubjectBeginStatements(StepIRI<P> stepSubject, Value object) {
 		if (object instanceof Literal || object instanceof BNode) {
-			return AutoClosedIterator.empty();
+			return empty();
 		}
 		long rank = stepSubject.rank();
 		P path = stepSubject.path();
 		var beginIRI = new StepBeginPositionIRI<>(path, rank, sail);
-		AutoClosedIterator<Statement> stream = AutoClosedIterator
-				.of(new UnsafeStatement(stepSubject, FALDO.begin, beginIRI));
-		return filter(object, stream);
+		if (object == null || beginIRI.equals(object)) {
+			return of(new UnsafeStatement(stepSubject, FALDO.begin, beginIRI));
+		} else {
+			return empty();
+		}
 	}
 
 	@Override

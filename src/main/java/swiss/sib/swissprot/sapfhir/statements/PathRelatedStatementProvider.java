@@ -24,7 +24,6 @@ import static io.github.jervenbolleman.handlegraph4j.iterators.AutoClosedIterato
 import static io.github.jervenbolleman.handlegraph4j.iterators.AutoClosedIterator.flatMap;
 import static io.github.jervenbolleman.handlegraph4j.iterators.AutoClosedIterator.map;
 import static io.github.jervenbolleman.handlegraph4j.iterators.AutoClosedIterator.of;
-import static swiss.sib.swissprot.sapfhir.statements.StatementProvider.filter;
 import static swiss.sib.swissprot.sapfhir.statements.StatementProvider.pathIriFromIri;
 
 import org.eclipse.rdf4j.model.BNode;
@@ -79,9 +78,8 @@ public final record PathRelatedStatementProvider<P extends PathHandle, S extends
 			return empty();
 		} else if (subject == null) {
 			AutoClosedIterator<P> paths = sail.pathGraph().paths();
-			var iris = map(paths, p -> new PathIRI<P>(p, sail));
-			var stats = map(iris, p -> this.getStatements(p, predicate, object));
-			return flatMap(stats);
+			var iris = map(paths, p -> this.getStatements(new PathIRI<P>(p, sail), predicate, object));
+			return flatMap(iris);
 		} else if (subject instanceof IRI) {
 			PathIRI<P> pathIRI = pathIriFromIri((IRI) subject, sail);
 			if (pathIRI == null) {
@@ -91,9 +89,8 @@ public final record PathRelatedStatementProvider<P extends PathHandle, S extends
 			} else if (RDFS.LABEL.equals(predicate)) {
 				return knownSubjectLabelStatements(pathIRI, object);
 			} else {
-				var of = concat(knownSubjectTypeStatements(pathIRI, object),
+				return concat(knownSubjectTypeStatements(pathIRI, object),
 						knownSubjectLabelStatements(pathIRI, object));
-				return of;
 			}
 		} else {
 			return empty();
@@ -103,10 +100,12 @@ public final record PathRelatedStatementProvider<P extends PathHandle, S extends
 	private AutoClosedIterator<Statement> knownSubjectTypeStatements(PathIRI<P> pathIRI, Value object) {
 		if (object instanceof BNode || object instanceof Literal) {
 			return empty();
+		} else if (object == null || VG.Path.equals(object)) {
+			Statement stat = new UnsafeStatement(pathIRI, RDF.TYPE, VG.Path);
+			return of(stat);
+		} else {
+			return empty();
 		}
-		Statement stat = new UnsafeStatement(pathIRI, RDF.TYPE, VG.Path);
-		AutoClosedIterator<Statement> stream = of(stat);
-		return filter(object, stream);
 	}
 
 	private AutoClosedIterator<Statement> knownSubjectLabelStatements(PathIRI<P> pathIRI, Value object) {
@@ -115,10 +114,12 @@ public final record PathRelatedStatementProvider<P extends PathHandle, S extends
 		}
 		String nameOfPath = sail.pathGraph().nameOfPath(pathIRI.path());
 		Literal label = sail.getValueFactory().createLiteral(nameOfPath);
-		Statement stat = new UnsafeStatement(pathIRI, RDFS.LABEL, label);
-
-		AutoClosedIterator<Statement> stream = of(stat);
-		return filter(object, stream);
+		if (object == null || label.equals(object)) {
+			Statement stat = new UnsafeStatement(pathIRI, RDFS.LABEL, label);
+			return of(stat);
+		} else {
+			return empty();
+		}
 	}
 
 	@Override

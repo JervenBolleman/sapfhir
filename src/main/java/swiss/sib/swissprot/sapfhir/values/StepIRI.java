@@ -45,7 +45,7 @@ public record StepIRI<P extends PathHandle>(P path, long rank, PathHandleGraphSa
 	 */
 	@Override
 	public String getNamespace() {
-		return graph.getPathNameSpace(path) + "/step/";
+		return graph.getPathNameSpace(path) + "step/";
 	}
 
 	@Override
@@ -58,7 +58,7 @@ public record StepIRI<P extends PathHandle>(P path, long rank, PathHandleGraphSa
 	 */
 	@Override
 	public String stringValue() {
-		return getNamespace() + '/' + getLocalName();
+		return getNamespace() + getLocalName();
 	}
 
 	/**

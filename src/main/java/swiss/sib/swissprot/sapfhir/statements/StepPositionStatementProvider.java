@@ -78,13 +78,12 @@ public record StepPositionStatementProvider<P extends PathHandle, S extends Step
 	public boolean objectMightReturnValues(Value val) {
 		if (val == null) {
 			return true;
-		} else if (val instanceof Literal) {
-			Literal lit = (Literal) val;
+		} else if (val instanceof Literal lit) {
 			return (XMLDatatypeUtil.isNumericDatatype(lit.getDatatype()));
 		} else if (val instanceof PathIRI) {
 			return true;
-		} else if (val instanceof IRI) {
-			return types.contains((IRI) val) || pathIriFromIri((IRI) val, sail) != null;
+		} else if (val instanceof IRI iri) {
+			return types.contains(iri) || pathIriFromIri(iri, sail) != null;
 		}
 		return false;
 	}
@@ -97,13 +96,14 @@ public record StepPositionStatementProvider<P extends PathHandle, S extends Step
 			if (!paths.hasNext()) {
 				return empty();
 			}
-			var flattened = flatMap(new PositionMaintainingStepIRIGenerator(paths, pg));
-			var known = map(flattened, i -> knownSubject(i, predicate, object));
+			var flattened = new PositionMaintainingStepIRIGenerator(paths, pg);
+			var known = map(flattened, be -> concat(knownSubject(be.begin(), predicate, object),
+					knownSubject(be.end(), predicate, object)));
 			return flatMap(known);
-		} else if (subject instanceof IRI) {
-			return knownSubject((IRI) subject, predicate, object);
+		} else if (subject instanceof IRI subjectIri) {
+			return knownSubject(subjectIri, predicate, object);
 		} else {
-			return AutoClosedIterator.empty();
+			return empty();
 		}
 	}
 
@@ -111,62 +111,67 @@ public record StepPositionStatementProvider<P extends PathHandle, S extends Step
 		StepPositionIRI<P, S> stepSubject = beginOrEndIriFromIri((IRI) subject);
 		// If null it is not a Step IRI and therefore can't match the values here.
 		if (stepSubject == null) {
-			return AutoClosedIterator.empty();
+			return empty();
 		} else if (RDF.TYPE.equals(predicate)) {
-			return knownSubjectTypeStatement(object, stepSubject);
+			return knownSubjectTypeStatement(stepSubject, object);
 		} else if (FALDO.reference.equals(predicate)) {
-			return knownSubjectReferenceStatements(object, stepSubject);
+			return knownSubjectReferenceStatements(stepSubject, object);
 		} else if (FALDO.position.equals(predicate)) {
-			return knownSubjectPositionStatements(object, stepSubject);
+			return knownSubjectPositionStatements(stepSubject, object);
 		} else if (predicate == null) {
-			var typeStatement = knownSubjectTypeStatement(object, stepSubject);
-			var all = concat(typeStatement, concat(knownSubjectReferenceStatements(object, stepSubject),
-					knownSubjectPositionStatements(object, stepSubject)));
-			return all;
+			var typeStatement = knownSubjectTypeStatement(stepSubject, object);
+			var referenceStatements = knownSubjectReferenceStatements(stepSubject, object);
+			var positionStatements = knownSubjectPositionStatements(stepSubject, object);
+			return concat(typeStatement, concat(referenceStatements, positionStatements));
 		} else {
 			return empty();
 		}
 	}
 
-	private AutoClosedIterator<Statement> knownSubjectTypeStatement(Value object, StepPositionIRI<P, S> subject) {
+	private AutoClosedIterator<Statement> knownSubjectTypeStatement(StepPositionIRI<P, S> subject, Value object) {
 		if (object instanceof Literal || object instanceof BNode) {
-			return AutoClosedIterator.empty();
+			return empty();
 		}
-		AutoClosedIterator<Statement> stream = concat(
-				of(new UnsafeStatement(subject, RDF.TYPE, FALDO.Position)),
-				of(new UnsafeStatement(subject, RDF.TYPE, FALDO.ExactPosition)));
+		UnsafeStatement position = new UnsafeStatement(subject, RDF.TYPE, FALDO.Position);
+		UnsafeStatement exactPosition = new UnsafeStatement(subject, RDF.TYPE, FALDO.ExactPosition);
 		if (object == null) {
-			return stream;
+			return of(position, exactPosition);
+		} else if (FALDO.Position.equals(object)) {
+			return of(position);
+		} else if (FALDO.ExactPosition.equals(object)) {
+			return of(exactPosition);
 		} else {
-			return AutoClosedIterator.filter(stream, s -> object.equals(s.getObject()));
+			return empty();
 		}
 	}
 
-	private AutoClosedIterator<Statement> knownSubjectReferenceStatements(Value object, StepPositionIRI<P, S> subject) {
+	private AutoClosedIterator<Statement> knownSubjectReferenceStatements(StepPositionIRI<P, S> subject, Value object) {
 		if (object instanceof Literal || object instanceof BNode) {
-			return AutoClosedIterator.empty();
+			return empty();
 		}
 		PathIRI<P> pathIRI = new PathIRI<>(subject.path(), sail);
-		Statement stat = new UnsafeStatement(subject, VG.path, pathIRI);
-		var stream = AutoClosedIterator.of(stat);
-		return filter(object, stream);
+		if (object == null || pathIRI.equals(object)) {
+			return of(new UnsafeStatement(subject, VG.path, pathIRI));
+		} else {
+			return empty();
+		}
 	}
 
-	private AutoClosedIterator<Statement> knownSubjectPositionStatements(Value object, StepPositionIRI<P, S> subject) {
+	private AutoClosedIterator<Statement> knownSubjectPositionStatements(StepPositionIRI<P, S> subject, Value object) {
 		if (object instanceof IRI || object instanceof BNode) {
-			return AutoClosedIterator.empty();
+			return empty();
 		}
 		AutoClosedIterator<Statement> stream;
 		if (subject instanceof StepBeginPositionIRI) {
 			long position = ((StepBeginPositionIRI<?, ?>) subject).getBeginPosition();
 			var l = sail.getValueFactory().createLiteral(position);
-			stream = AutoClosedIterator.of(new UnsafeStatement(subject, FALDO.position, l));
+			stream = of(new UnsafeStatement(subject, FALDO.position, l));
 		} else if (subject instanceof StepEndPositionIRI) {
 			long position = ((StepEndPositionIRI<?, ?>) subject).getEndPosition();
 			var l = sail.getValueFactory().createLiteral(position);
-			stream = AutoClosedIterator.of(new UnsafeStatement(subject, FALDO.position, l));
+			stream = of(new UnsafeStatement(subject, FALDO.position, l));
 		} else {
-			return AutoClosedIterator.empty();
+			return empty();
 		}
 		return filter(object, stream);
 	}
@@ -211,8 +216,12 @@ public record StepPositionStatementProvider<P extends PathHandle, S extends Step
 		return null;
 	}
 
-	private class PositionMaintainingStepIRIGenerator
-			implements AutoClosedIterator<AutoClosedIterator<StepPositionIRI<P, S>>> {
+	private record StepBeginAndEndIris<P extends PathHandle, S extends StepHandle>(StepBeginPositionIRI<P, S> begin,
+			StepEndPositionIRI<P, S> end) {
+
+	}
+
+	private class PositionMaintainingStepIRIGenerator implements AutoClosedIterator<StepBeginAndEndIris<P, S>> {
 
 		private final AutoClosedIterator<P> paths;
 		private final PathGraph<P, S, N, E> pg;
@@ -251,7 +260,7 @@ public record StepPositionStatementProvider<P extends PathHandle, S extends Step
 		}
 
 		@Override
-		public AutoClosedIterator<StepPositionIRI<P, S>> next() {
+		public StepBeginAndEndIris<P, S> next() {
 			S s = steps.next();
 			int seqln = pg.sequenceLengthOf(pg.nodeOfStep(s));
 
@@ -260,7 +269,7 @@ public record StepPositionStatementProvider<P extends PathHandle, S extends Step
 			var e = new StepEndPositionIRI<>(path, rank, sail, endPosition);
 			beginPosition = endPosition + 1;
 			rank++;
-			return concat(of(b), of(e));
+			return new StepBeginAndEndIris<>(b, e);
 		}
 	}
 

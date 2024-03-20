@@ -86,18 +86,17 @@ public record StepBeginPositionIRI<P extends PathHandle, S extends StepHandle>(P
 		if (obj == null) {
 			return false;
 		}
-		if (obj instanceof StepBeginPositionIRI<?, ?>) {
-			return equalsBeginStep(obj);
-		} else if (obj instanceof StepEndPositionIRI<?, ?>) {
-			return equalsEndStep(obj);
-		} else if (obj instanceof IRI) {
-			return stringValue().equals(((IRI) obj).stringValue());
+		if (obj instanceof StepBeginPositionIRI<?, ?> sbpi) {
+			return equalsBeginStep(sbpi);
+		} else if (obj instanceof StepEndPositionIRI<?, ?> sepi) {
+			return equalsEndStep(sepi);
+		} else if (obj instanceof IRI iri) {
+			return stringValue().equals(iri.stringValue());
 		}
 		return true;
 	}
 
-	private boolean equalsBeginStep(Object obj) {
-		StepBeginPositionIRI<?, ?> other = (StepBeginPositionIRI<?, ?>) obj;
+	private boolean equalsBeginStep(StepBeginPositionIRI<?, ?> other) {
 		if (!Objects.equals(this.path(), other.path())) {
 			return false;
 		}
@@ -107,16 +106,13 @@ public record StepBeginPositionIRI<P extends PathHandle, S extends StepHandle>(P
 		if (this.rank == other.rank()) {
 			return true;
 		} else {
-			StepBeginPositionIRI<P, S> other2 = (StepBeginPositionIRI<P, S>) obj;
 			long ourposition = this.getBeginPosition();
-			long thatPosition = other2.getBeginPosition();
+			long thatPosition = other.getBeginPosition();
 			return ourposition == thatPosition;
-
 		}
 	}
 
-	private boolean equalsEndStep(Object obj) {
-		StepEndPositionIRI<?, ?> other = (StepEndPositionIRI<?, ?>) obj;
+	private boolean equalsEndStep(StepEndPositionIRI<?, ?> other) {
 		if (!Objects.equals(this.path(), other.path())) {
 			return false;
 		}
@@ -126,9 +122,8 @@ public record StepBeginPositionIRI<P extends PathHandle, S extends StepHandle>(P
 		if (this.rank == other.rank()) {
 			return false;
 		} else {
-			StepEndPositionIRI<P, S> other2 = (StepEndPositionIRI<P, S>) obj;
 			long ourposition = getBeginPosition();
-			long thatPosition = other2.getEndPosition();
+			long thatPosition = other.getEndPosition();
 			return ourposition == thatPosition;
 		}
 	}

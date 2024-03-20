@@ -131,7 +131,7 @@ public sealed interface StatementProvider permits StepRelatedStatementProvider, 
 	 * @param sail the backing sail in which the path should be found in.
 	 * @return a NodeIRI or null
 	 */
-	static <N extends NodeHandle> NodeIRI<N> nodeIriFromIRI(IRI iri, PathHandleGraphSail<?, ?, N, ?> sail) {
+	static <N extends NodeHandle> NodeIRI<N> nodeIriFromIri(IRI iri, PathHandleGraphSail<?, ?, N, ?> sail) {
 		if (iri == null) {
 			return null;
 		} else if (iri instanceof NodeIRI ni) {
