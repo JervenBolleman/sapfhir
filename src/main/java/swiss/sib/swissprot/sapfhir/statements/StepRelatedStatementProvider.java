@@ -46,7 +46,6 @@ import io.github.jervenbolleman.handlegraph4j.iterators.AutoClosedIterator;
 import swiss.sib.swissprot.handlegraph4jrdf.FALDO;
 import swiss.sib.swissprot.handlegraph4jrdf.VG;
 import swiss.sib.swissprot.sapfhir.sparql.PathHandleGraphSail;
-import swiss.sib.swissprot.sapfhir.values.HandleGraphValueFactory;
 import swiss.sib.swissprot.sapfhir.values.NodeIRI;
 import swiss.sib.swissprot.sapfhir.values.PathIRI;
 import swiss.sib.swissprot.sapfhir.values.StepBeginPositionIRI;
@@ -54,24 +53,35 @@ import swiss.sib.swissprot.sapfhir.values.StepEndPositionIRI;
 import swiss.sib.swissprot.sapfhir.values.StepIRI;
 
 /**
+ * Provides the statements related to steps.
  *
  * @author <a href="mailto:jerven.bolleman@sib.swiss">Jerven Bolleman</a>
+ * @param <P> the type of PathHandle
+ * @param <S> the type of StepHandle
+ * @param <E> the type of EdgeHandle
+ * @param <N> the type of NodeHandle
  */
-public class StepRelatedStatementProvider<P extends PathHandle, S extends StepHandle, N extends NodeHandle, E extends EdgeHandle<N>>
+public final class StepRelatedStatementProvider<P extends PathHandle, S extends StepHandle, N extends NodeHandle, E extends EdgeHandle<N>>
 		implements StatementProvider {
 
-	/**
-	 * Value factory for literals and iris
-	 */
-	private final HandleGraphValueFactory<P, S, N, E> vf;
-
+	private static final IRI[] KNOWN_PREDICATES = new IRI[] { RDF.TYPE, VG.rank, VG.node, VG.reverseOfNode, VG.path,
+			FALDO.begin, FALDO.end };
+	// A list of method handles to invoke in order of the above.
+	private final List<BiFunction<StepIRI<P>, Value, AutoClosedIterator<Statement>>> knownPredicateFunctions = List.of(
+			this::knownSubjectTypeStatement, this::knownSubjectRankStatements, this::knownSubjectNodeStatements,
+			this::knownSubjectReverseNodeStatements, this::knownSubjectPathStatements,
+			this::knownSubjectBeginStatements, this::knownSubjectEndStatements);
 	/**
 	 * backing sail
 	 */
 	private final PathHandleGraphSail<P, S, N, E> sail;
 
-	public StepRelatedStatementProvider(PathHandleGraphSail<P, S, N, E> sail, HandleGraphValueFactory<P, S, N, E> vf) {
-		this.vf = vf;
+	/**
+	 * A new StepStamentProvider for the sail and vf combination
+	 * 
+	 * @param sail the sail that this provides statements from
+	 **/
+	public StepRelatedStatementProvider(PathHandleGraphSail<P, S, N, E> sail) {
 		this.sail = sail;
 	}
 
@@ -123,13 +133,6 @@ public class StepRelatedStatementProvider<P extends PathHandle, S extends StepHa
 		}
 	}
 
-	private static final IRI[] knownPredicates = new IRI[] { RDF.TYPE, VG.rank, VG.node, VG.reverseOfNode, VG.path,
-			FALDO.begin, FALDO.end };
-	private final List<BiFunction<StepIRI<P>, Value, AutoClosedIterator<Statement>>> knownPredicateFunctions = List.of(
-			this::knownSubjectTypeStatement, this::knownSubjectRankStatements, this::knownSubjectNodeStatements,
-			this::knownSubjectReverseNodeStatements, this::knownSubjectPathStatements,
-			this::knownSubjectBeginStatements, this::knownSubjectEndStatements);
-
 	private AutoClosedIterator<Statement> knownSubject(IRI subject, IRI predicate, Value object) {
 		StepIRI<P> stepSubject = stepIriFromIri((IRI) subject, sail);
 		// If null it is not a Step IRI and therefore can't match the values here.
@@ -154,8 +157,8 @@ public class StepRelatedStatementProvider<P extends PathHandle, S extends StepHa
 	}
 
 	private AutoClosedIterator<Statement> findByEquals(IRI predicate, Value object, StepIRI<P> stepSubject) {
-		for (int i = 0; i < knownPredicates.length; i++) {
-			IRI knownPredicate = knownPredicates[i];
+		for (int i = 0; i < KNOWN_PREDICATES.length; i++) {
+			IRI knownPredicate = KNOWN_PREDICATES[i];
 			if (knownPredicate.equals(predicate)) {
 				return knownPredicateFunctions.get(i).apply(stepSubject, object);
 			}
@@ -188,12 +191,12 @@ public class StepRelatedStatementProvider<P extends PathHandle, S extends StepHa
 			return AutoClosedIterator.empty();
 		}
 		if (VG.Step.equals(object)) {
-			return of(new HandleGraphValueFactory.UnsafeStatement(subject, RDF.TYPE, VG.Step));
+			return of(new UnsafeStatement(subject, RDF.TYPE, VG.Step));
 		} else if (FALDO.Region.equals(object)) {
-			return of(new HandleGraphValueFactory.UnsafeStatement(subject, RDF.TYPE, FALDO.Region));
+			return of(new UnsafeStatement(subject, RDF.TYPE, FALDO.Region));
 		} else {
-			AutoClosedIterator<Statement> stream = concat(of(new HandleGraphValueFactory.UnsafeStatement(subject, RDF.TYPE, VG.Step)),
-					of(new HandleGraphValueFactory.UnsafeStatement(subject, RDF.TYPE, FALDO.Region)));
+			AutoClosedIterator<Statement> stream = concat(of(new UnsafeStatement(subject, RDF.TYPE, VG.Step)),
+					of(new UnsafeStatement(subject, RDF.TYPE, FALDO.Region)));
 			return filter(object, stream);
 		}
 	}
@@ -202,8 +205,8 @@ public class StepRelatedStatementProvider<P extends PathHandle, S extends StepHa
 		if (object instanceof IRI || object instanceof BNode) {
 			return AutoClosedIterator.empty();
 		}
-		AutoClosedIterator<Statement> stream = AutoClosedIterator
-				.of(new HandleGraphValueFactory.UnsafeStatement(stepSubject, VG.rank, vf.createLiteral(stepSubject.rank())));
+		AutoClosedIterator<Statement> stream = AutoClosedIterator.of(
+				new UnsafeStatement(stepSubject, VG.rank, sail.getValueFactory().createLiteral(stepSubject.rank())));
 		return filter(object, stream);
 	}
 
@@ -217,7 +220,8 @@ public class StepRelatedStatementProvider<P extends PathHandle, S extends StepHa
 			return AutoClosedIterator.empty();
 		}
 		NodeIRI<N> nodeIRI = new NodeIRI<>(node.id(), sail);
-		AutoClosedIterator<Statement> stream = AutoClosedIterator.of(new HandleGraphValueFactory.UnsafeStatement(stepSubject, VG.node, nodeIRI));
+		AutoClosedIterator<Statement> stream = AutoClosedIterator
+				.of(new UnsafeStatement(stepSubject, VG.node, nodeIRI));
 		return filter(object, stream);
 	}
 
@@ -232,7 +236,7 @@ public class StepRelatedStatementProvider<P extends PathHandle, S extends StepHa
 		}
 		NodeIRI<N> nodeIRI = new NodeIRI<>(node.id(), sail);
 		AutoClosedIterator<Statement> stream = AutoClosedIterator
-				.of(new HandleGraphValueFactory.UnsafeStatement(stepSubject, VG.reverseOfNode, nodeIRI));
+				.of(new UnsafeStatement(stepSubject, VG.reverseOfNode, nodeIRI));
 		return filter(object, stream);
 	}
 
@@ -241,7 +245,7 @@ public class StepRelatedStatementProvider<P extends PathHandle, S extends StepHa
 			return AutoClosedIterator.empty();
 		}
 		PathIRI<P> path = new PathIRI<>(stepSubject.path(), sail);
-		AutoClosedIterator<Statement> stream = AutoClosedIterator.of(new HandleGraphValueFactory.UnsafeStatement(stepSubject, VG.path, path));
+		AutoClosedIterator<Statement> stream = AutoClosedIterator.of(new UnsafeStatement(stepSubject, VG.path, path));
 		return filter(object, stream);
 	}
 
@@ -252,7 +256,8 @@ public class StepRelatedStatementProvider<P extends PathHandle, S extends StepHa
 		long rank = stepSubject.rank();
 		P path = stepSubject.path();
 		var beginIRI = new StepEndPositionIRI<>(path, rank, sail);
-		AutoClosedIterator<Statement> stream = AutoClosedIterator.of(new HandleGraphValueFactory.UnsafeStatement(stepSubject, FALDO.begin, beginIRI));
+		AutoClosedIterator<Statement> stream = AutoClosedIterator
+				.of(new UnsafeStatement(stepSubject, FALDO.begin, beginIRI));
 		return filter(object, stream);
 	}
 
@@ -263,7 +268,8 @@ public class StepRelatedStatementProvider<P extends PathHandle, S extends StepHa
 		long rank = stepSubject.rank();
 		P path = stepSubject.path();
 		var beginIRI = new StepBeginPositionIRI<>(path, rank, sail);
-		AutoClosedIterator<Statement>  stream = AutoClosedIterator.of(new HandleGraphValueFactory.UnsafeStatement(stepSubject, FALDO.begin, beginIRI));
+		AutoClosedIterator<Statement> stream = AutoClosedIterator
+				.of(new UnsafeStatement(stepSubject, FALDO.begin, beginIRI));
 		return filter(object, stream);
 	}
 

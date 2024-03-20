@@ -49,6 +49,7 @@ import swiss.sib.swissprot.sapfhir.statements.StepRelatedStatementProvider;
 import swiss.sib.swissprot.sapfhir.values.HandleGraphValueFactory;
 
 /**
+ * Generate the triples for the different possible values htat can be asked for.
  *
  * @author <a href="mailto:jerven.bolleman@sib.swiss">Jerven Bolleman</a>
  * @param <P> the type of PathHandle
@@ -57,89 +58,95 @@ import swiss.sib.swissprot.sapfhir.values.HandleGraphValueFactory;
  * @param <N> the type of NodeHandle
  */
 public class PathHandleGraphTripleSource<P extends PathHandle, S extends StepHandle, N extends NodeHandle, E extends EdgeHandle<N>>
-        implements TripleSource {
+		implements TripleSource {
 
-    private final HandleGraphValueFactory<P, S, N, E> vf;
-    private final List<StatementProvider> statementProviders;
+	private final HandleGraphValueFactory<P, S, N, E> vf;
+	private final List<StatementProvider> statementProviders;
 
-    public PathHandleGraphTripleSource(PathHandleGraphSail<P, S, N, E> sail) {
-        this.vf = new HandleGraphValueFactory<>(sail);
-        this.statementProviders = List.of(
-                new StepPositionStatementProvider<>(sail, vf),
-                new NodeRelatedStatementProvider<>(sail, vf),
-                new StepRelatedStatementProvider<>(sail, vf),
-                new PathRelatedStatementProvider<>(sail, vf));
-    }
+	/**
+	 * A triple source for a certain sail
+	 * 
+	 * @param sail the handlegraph backed sail we extract data from
+	 */
+	public PathHandleGraphTripleSource(PathHandleGraphSail<P, S, N, E> sail) {
+		this.vf = sail.getValueFactory();
+		this.statementProviders = List.of(new StepPositionStatementProvider<>(sail),
+				new NodeRelatedStatementProvider<>(sail), new StepRelatedStatementProvider<>(sail),
+				new PathRelatedStatementProvider<>(sail));
+	}
 
-    @Override
-    public CloseableIteration<? extends Statement>
-            getStatements(Resource subject,
-                    IRI predicate,
-                    Value object,
-                    Resource... rsrcs)
-            throws QueryEvaluationException {
-        //We know that we don't have any blanknodes
-        if (subject instanceof BNode || object instanceof BNode) {
-            return new EmptyIteration<>();
-        }
-        var from = from(statementProviders.iterator());
-        var subs = filter(from, sp -> sp.subjectMightReturnValues(subject));
-        var preds = filter(subs, sp -> sp.predicateMightReturnValues(predicate));
-        var obs = filter(preds, sp -> sp.objectMightReturnValues(object));
+	@Override
+	public CloseableIteration<? extends Statement> getStatements(Resource subject, IRI predicate, Value object,
+			Resource... rsrcs) throws QueryEvaluationException {
+		// We know that we don't have any blanknodes
+		if (subject instanceof BNode || object instanceof BNode) {
+			return new EmptyIteration<>();
+		}
+		var from = from(statementProviders.iterator());
+		var subs = filter(from, sp -> sp.subjectMightReturnValues(subject));
+		var preds = filter(subs, sp -> sp.predicateMightReturnValues(predicate));
+		var obs = filter(preds, sp -> sp.objectMightReturnValues(object));
 
-        var generateStatements = map(obs, ps -> statements(ps, subject, predicate, object));
-        return new CloseableIterationFromAutoClosedIterator(flatMap(generateStatements));
-    }
+		var generateStatements = map(obs, ps -> statements(ps, subject, predicate, object));
+		return new CloseableIterationFromAutoClosedIterator(flatMap(generateStatements));
+	}
 
-    private static AutoClosedIterator<Statement> statements(StatementProvider ps,
-            Resource subject, IRI predicate, Value object) {
-        return ps.getStatements(subject, predicate, object);
-    }
+	private static AutoClosedIterator<Statement> statements(StatementProvider ps, Resource subject, IRI predicate,
+			Value object) {
+		return ps.getStatements(subject, predicate, object);
+	}
 
-    @Override
-    public HandleGraphValueFactory<P,S, N, E> getValueFactory() {
-        return vf;
-    }
+	@Override
+	public HandleGraphValueFactory<P, S, N, E> getValueFactory() {
+		return vf;
+	}
 
-    public double estimateCardinality(Resource subj, IRI pred, Value obj) {
-        double estimate = 0;
-        for (StatementProvider sp : statementProviders) {
-            estimate = Math.max(estimate, sp.estimateCardinality(subj, pred, obj));
-        }
-        return estimate;
-    }
+	/**
+	 * Estimate how many statements match the BGP
+	 * 
+	 * @param subj the subject to estimate for
+	 * @param pred the predicate to estimate for
+	 * @param obj  the object to estimate for
+	 * @return an estimate
+	 */
+	public double estimateCardinality(Resource subj, IRI pred, Value obj) {
+		double estimate = 0;
+		for (StatementProvider sp : statementProviders) {
+			estimate = Math.max(estimate, sp.estimateCardinality(subj, pred, obj));
+		}
+		return estimate;
+	}
 
-    private static class CloseableIterationFromAutoClosedIterator
-            implements CloseableIteration<Statement> {
+	private static class CloseableIterationFromAutoClosedIterator implements CloseableIteration<Statement> {
 
-        private final AutoClosedIterator<Statement> providedAsIter;
-        private Statement last;
+		private final AutoClosedIterator<Statement> providedAsIter;
+		private Statement last;
 
-        public CloseableIterationFromAutoClosedIterator(AutoClosedIterator<Statement> providedAsIter) {
-            this.providedAsIter = providedAsIter;
-        }
+		public CloseableIterationFromAutoClosedIterator(AutoClosedIterator<Statement> providedAsIter) {
+			this.providedAsIter = providedAsIter;
+		}
 
-        @Override
-        public void close() throws QueryEvaluationException {
-            providedAsIter.close();
-        }
+		@Override
+		public void close() throws QueryEvaluationException {
+			providedAsIter.close();
+		}
 
-        @Override
-        public boolean hasNext() throws QueryEvaluationException {
-            return providedAsIter.hasNext();
-        }
+		@Override
+		public boolean hasNext() throws QueryEvaluationException {
+			return providedAsIter.hasNext();
+		}
 
-        @Override
-        public Statement next() throws QueryEvaluationException {
-            Statement next = providedAsIter.next();
-            assert next != null : "null after" + last;
-            last = next;
-            return next;
-        }
+		@Override
+		public Statement next() throws QueryEvaluationException {
+			Statement next = providedAsIter.next();
+			assert next != null : "null after" + last;
+			last = next;
+			return next;
+		}
 
-        @Override
-        public void remove() throws QueryEvaluationException {
-            providedAsIter.remove();
-        }
-    }
+		@Override
+		public void remove() throws QueryEvaluationException {
+			providedAsIter.remove();
+		}
+	}
 }

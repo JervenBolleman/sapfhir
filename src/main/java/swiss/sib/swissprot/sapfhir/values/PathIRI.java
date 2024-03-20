@@ -29,77 +29,64 @@ import io.github.jervenbolleman.handlegraph4j.PathHandle;
 import swiss.sib.swissprot.sapfhir.sparql.PathHandleGraphSail;
 
 /**
+ * Hide a path and graph object in an IRI allows efficient computation of equals
+ * etc.
  *
  * @author <a href="mailto:jerven.bolleman@sib.swiss">Jerven Bolleman</a>
- * @param <P> the type of PathHandle
+ * @param <P>   the type of PathHandle
+ * @param path  the path hiding in this IRI
+ * @param graph the graph the path is in
  */
-public class PathIRI<P extends PathHandle> implements IRI {
+public record PathIRI<P extends PathHandle>(P path, PathHandleGraphSail<P, ?, ?, ?> graph) implements IRI {
 	private static final long serialVersionUID = 1;
 
-    private static final ValueFactory VF = SimpleValueFactory.getInstance();
-    /**
-     * The path identified
-     */
-    private final P pathId;
-    /**
-     * The backing graph
-     */
-    private final PathHandleGraphSail<P, ?, ?, ?> graph;
+	private static final ValueFactory VF = SimpleValueFactory.getInstance();
 
-    public PathIRI(P pathId, PathHandleGraphSail<P, ?, ?, ?> graph) {
-        this.pathId = pathId;
-        this.graph = graph;
-    }
+	@Override
+	public String getNamespace() {
+		return VF.createIRI(graph.getPathNameSpace(path)).getNamespace();
+	}
 
-    @Override
-    public String getNamespace() {
-        return VF.createIRI(graph.getPathNameSpace(pathId)).getNamespace();
-    }
+	@Override
+	public String getLocalName() {
+		return VF.createIRI(graph.getPathNameSpace(path)).getLocalName();
+	}
 
-    @Override
-    public String getLocalName() {
-        return VF.createIRI(graph.getPathNameSpace(pathId)).getLocalName();
-    }
+	@Override
+	public String stringValue() {
+		return graph.getPathNameSpace(path);
+	}
 
-    public P path() {
-        return pathId;
-    }
+	@Override
+	public String toString() {
+		return stringValue();
+	}
 
-    @Override
-    public String stringValue() {
-        return graph.getPathNameSpace(pathId);
-    }
+	@Override
+	public int hashCode() {
+		return stringValue().hashCode();
+	}
 
-    @Override
-    public String toString() {
-        return stringValue();
-    }
-
-    @Override
-    public int hashCode() {
-        return stringValue().hashCode();
-    }
-
-    @Override
-    public boolean equals(Object obj) {
-        if (this == obj) {
-            return true;
-        }
-        if (obj == null) {
-            return false;
-        }
-        if (obj instanceof PathIRI<?>) {
-            final PathIRI<?> other = (PathIRI<?>) obj;
-            if (!this.pathId.equals(other.pathId)) {
-                return false;
-            }
-            if (!Objects.equals(this.graph, other.graph)) {
-                return false;
-            }
-            return true;
-        } else if (obj instanceof IRI) {
-            return stringValue().equals(((IRI) obj).stringValue());
-        }
-        return true;
-    }
+	@Override
+	public boolean equals(Object obj) {
+		if (this == obj) {
+			return true;
+		}
+		if (obj == null) {
+			return false;
+		}
+		if (obj instanceof PathIRI<?>) {
+			final PathIRI<?> other = (PathIRI<?>) obj;
+			if (!this.path.equals(other.path)) {
+				return false;
+			}
+			if (!Objects.equals(this.graph, other.graph)) {
+				return false;
+			}
+			return true;
+		} else if (obj instanceof IRI) {
+			return stringValue().equals(((IRI) obj).stringValue());
+		}
+		return true;
+	}
 }

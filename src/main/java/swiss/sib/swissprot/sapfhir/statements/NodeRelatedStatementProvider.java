@@ -56,287 +56,272 @@ import io.github.jervenbolleman.handlegraph4j.sequences.Sequence;
 import io.github.jervenbolleman.handlegraph4j.sequences.SequenceType;
 import swiss.sib.swissprot.handlegraph4jrdf.VG;
 import swiss.sib.swissprot.sapfhir.sparql.PathHandleGraphSail;
-import swiss.sib.swissprot.sapfhir.values.HandleGraphValueFactory;
 import swiss.sib.swissprot.sapfhir.values.NodeIRI;
 import swiss.sib.swissprot.sapfhir.values.SequenceLiteral;
 
 /**
+ * Generate the statements associated with node objects
  *
  * @author <a href="mailto:jerven.bolleman@sib.swiss">Jerven Bolleman</a>
- * @param <P> the type of PathHandle
- * @param <S> the type of StepHandle
- * @param <E> the type of EdgeHandle
- * @param <N> the type of NodeHandle
+ * @param <P>  the type of PathHandle
+ * @param <S>  the type of StepHandle
+ * @param <E>  the type of EdgeHandle
+ * @param <N>  the type of NodeHandle
+ * @param sail the sail that this provides statements from
  */
-public class NodeRelatedStatementProvider<P extends PathHandle, S extends StepHandle, N extends NodeHandle, E extends EdgeHandle<N>>
-        implements StatementProvider {
+public record NodeRelatedStatementProvider<P extends PathHandle, S extends StepHandle, N extends NodeHandle, E extends EdgeHandle<N>>(
+		PathHandleGraphSail<P, S, N, E> sail) implements StatementProvider {
 
-    private final PathHandleGraphSail<P, S, N, E> sail;
-    private final HandleGraphValueFactory<P, S, N, E> vf;
+	private static final Set<IRI> linkPredicates = Set.of(VG.linksForwardToForward, VG.linksForwardToReverse,
+			VG.linksReverseToForward, VG.linksReverseToReverse, VG.links);
+	private static final Set<IRI> nodeRelatedPredicates = Set.of(VG.linksForwardToForward, VG.linksForwardToReverse,
+			VG.linksReverseToForward, VG.linksReverseToReverse, VG.links, RDF.TYPE, RDF.VALUE);
 
-    public NodeRelatedStatementProvider(PathHandleGraphSail<P, S, N, E> sail, HandleGraphValueFactory<P, S, N, E> vf) {
-        this.sail = sail;
-        this.vf = vf;
-    }
+	@Override
+	public boolean predicateMightReturnValues(IRI iri) {
+		return iri == null || nodeRelatedPredicates.contains(iri);
+	}
 
-    private static final Set<IRI> linkPredicates = Set.of(VG.linksForwardToForward,
-            VG.linksForwardToReverse,
-            VG.linksReverseToForward,
-            VG.linksReverseToReverse,
-            VG.links);
-    private static final Set<IRI> nodeRelatedPredicates = Set.of(VG.linksForwardToForward,
-            VG.linksForwardToReverse,
-            VG.linksReverseToForward,
-            VG.linksReverseToReverse,
-            VG.links,
-            RDF.TYPE,
-            RDF.VALUE);
+	@Override
+	public boolean objectMightReturnValues(Value val) {
+		if (val == null) {
+			return true;
+		} else if (VG.Node.equals(val)) {
+			return true;
+		} else if (val instanceof Literal) {
+			Literal lit = (Literal) val;
+			return (XSD.STRING.equals(lit.getDatatype()));
+		}
+		return false;
+	}
 
-    @Override
-    public boolean predicateMightReturnValues(IRI iri) {
-        return iri == null || nodeRelatedPredicates.contains(iri);
-    }
+	@Override
+	public AutoClosedIterator<Statement> getStatements(Resource subject, IRI predicate, Value object) {
+		if (subject instanceof BNode) {
+			return AutoClosedIterator.empty();
+		}
+		NodeIRI<N> nodeSubject = nodeIriFromIRI((IRI) subject, sail);
+		if (nodeSubject != null) {
+			return generateTriplesForKnownNode(nodeSubject, predicate, object);
+		} else if (subject == null && object == null) {
+			return generateTriplesForAllNodes(predicate);
+		} else if (object instanceof Literal && (predicate == null || RDF.VALUE.equals(predicate))) {
+			return getNodeTriplesForKnownSequence(object, RDF.VALUE);
+		} else if (object instanceof IRI) {
+			NodeIRI<N> nodeObject = nodeIriFromIRI((IRI) object, sail);
+			if (nodeObject != null) {
+				sail.pathGraph().followEdgesToWardsTheRight(nodeObject.node());
+			} else if (VG.Node.equals(object)) {
+				AutoClosedIterator<N> nodes = sail.pathGraph().nodes();
+				return map(nodes, (n) -> {
+					var ni = new NodeIRI<>(n.id(), sail);
+					return new UnsafeStatement(ni, RDF.TYPE, VG.Node);
+				});
+			}
+		}
+		return AutoClosedIterator.empty();
+	}
 
-    @Override
-    public boolean objectMightReturnValues(Value val) {
-        if (val == null) {
-            return true;
-        } else if (VG.Node.equals(val)) {
-            return true;
-        } else if (val instanceof Literal) {
-            Literal lit = (Literal) val;
-            return (XSD.STRING.equals(lit.getDatatype()));
-        }
-        return false;
-    }
+	private AutoClosedIterator<Statement> generateTriplesForAllNodes(IRI predicate) {
+		var nodeWithSequence = sail.pathGraph().nodesWithTheirSequence();
 
-    @Override
-    public AutoClosedIterator<Statement> getStatements(Resource subject, IRI predicate, Value object) {
-        if (subject instanceof BNode) {
-            return AutoClosedIterator.empty();
-        }
-        NodeIRI<N> nodeSubject = nodeIriFromIRI((IRI) subject, sail);
-        if (nodeSubject != null) {
-            return generateTriplesForKnownNode(nodeSubject, predicate, object);
-        } else if (subject == null && object == null) {
-            return generateTriplesForAllNodes(predicate);
-        } else if (object instanceof Literal && (predicate == null || RDF.VALUE.equals(predicate))) {
-            return getNodeTriplesForKnownSequence(object, RDF.VALUE);
-        } else if (object instanceof IRI) {
-            NodeIRI<N> nodeObject = nodeIriFromIRI((IRI) object, sail);
-            if (nodeObject != null) {
-                sail.pathGraph().followEdgesToWardsTheRight(nodeObject.node());
-            } else if (VG.Node.equals(object)) {
-                AutoClosedIterator<N> nodes = sail.pathGraph().nodes();
-                return map(nodes, (n) -> {
-                    var ni = new NodeIRI<>(n.id(), sail);
-                    return new HandleGraphValueFactory.UnsafeStatement(ni, RDF.TYPE, VG.Node);
-                });
-            }
-        }
-        return AutoClosedIterator.empty();
-    }
+		if (predicate == null) {
+			// All nodes
+			var to = map(nodeWithSequence, (n) -> nodeSequenceToTriples(n, predicate, null));
 
-    private AutoClosedIterator<Statement> generateTriplesForAllNodes(IRI predicate) {
-        var nodeWithSequence = sail.pathGraph().nodesWithTheirSequence();
+			var nodes = flatMap(to);
+			var edges = sail.pathGraph().edges();
+			var edgeStatements = edgesToStatements(predicate, edges);
+			return concat(nodes, edgeStatements);
+		} else if (linkPredicates.contains(predicate)) {
+			var edges = sail.pathGraph().edges();
+			return edgesToStatements(predicate, edges);
+		} else {
+			return empty();
+		}
+	}
 
-     
-        if (predicate == null) {
-        	   //All nodes
-            var to = map(nodeWithSequence, (n) -> nodeSequenceToTriples(n, predicate, null));
-            
-        	var nodes = flatMap(to);
-            var edges = sail.pathGraph().edges();
-            var edgeStatements = edgesToStatements(predicate, edges);
-            return concat(nodes, edgeStatements);
-        } else if (linkPredicates.contains(predicate)){
-        	var edges = sail.pathGraph().edges();
-            return edgesToStatements(predicate, edges);
-        } else {
-        	return empty();
-        }
-    }
+	private AutoClosedIterator<Statement> generateTriplesForKnownNode(NodeIRI<N> nodeSubject, IRI predicate,
+			Value object) {
+		N node = nodeSubject.node();
+		var typeValue = nodeToTriples(node, predicate, object);
 
-    private AutoClosedIterator<Statement> generateTriplesForKnownNode(NodeIRI<N> nodeSubject, IRI predicate, Value object) {
-        N node = nodeSubject.node();
-        var typeValue = nodeToTriples(node, predicate, object);
+		if ((predicate == null || linkPredicates.contains(predicate)) && ((object instanceof IRI) || object == null)) {
+			NodeIRI<N> nodeObject = nodeIriFromIRI((IRI) object, sail);
+			var linksForNode = linksForNode(node, predicate, nodeObject);
+			var typesAndLinks = concat(typeValue, linksForNode);
+			return typesAndLinks;
+		}
+		return typeValue;
+	}
 
-        if ((predicate == null || linkPredicates.contains(predicate))
-                && ((object instanceof IRI)
-                || object == null)) {
-            NodeIRI<N> nodeObject = nodeIriFromIRI((IRI) object, sail);
-            var linksForNode = linksForNode(node, predicate, nodeObject);
-            var typesAndLinks = concat(typeValue, linksForNode);
-            return typesAndLinks;
-        }
-        return typeValue;
-    }
+	private AutoClosedIterator<Statement> getNodeTriplesForKnownSequence(Value object, IRI predicate) {
+		Literal lit = (Literal) object;
+		if ((lit.getDatatype() == null || lit.getDatatype() == XSD.STRING) && lit.getLanguage().isEmpty()) {
+			String label = lit.getLabel();
+			if (Sequence.stringCanBeDNASequence(label)) {
+				byte[] bytes = label.getBytes(StandardCharsets.US_ASCII);
+				Sequence seq = SequenceType.fromByteArray(bytes);
+				var nodesWithSequence = sail.pathGraph().nodesWithSequence(seq);
+				Function<N, AutoClosedIterator<Statement>> name = n -> nodeToTriples(n, predicate, object);
+				var map = map(nodesWithSequence, name);
+				return flatMap(map);
+			}
+		}
+		return empty();
+	}
 
-    private AutoClosedIterator<Statement> getNodeTriplesForKnownSequence(Value object, IRI predicate) {
-        Literal lit = (Literal) object;
-        if ((lit.getDatatype() == null || lit.getDatatype() == XSD.STRING)
-                && lit.getLanguage().isEmpty()) {
-            String label = lit.getLabel();
-            if (Sequence.stringCanBeDNASequence(label)) {
-                byte[] bytes = label.getBytes(StandardCharsets.US_ASCII);
-                Sequence seq = SequenceType.fromByteArray(bytes);
-                var nodesWithSequence = sail.pathGraph().nodesWithSequence(seq);
-                Function<N, AutoClosedIterator<Statement>> name
-                        = n -> nodeToTriples(n, predicate, object);
-                var map = map(nodesWithSequence, name);
-                return flatMap(map);
-            }
-        }
-        return empty();
-    }
+	private AutoClosedIterator<Statement> nodeSequenceToTriples(NodeSequence<N> ns, IRI predicate, Value object) {
 
-    private AutoClosedIterator<Statement> nodeSequenceToTriples(NodeSequence<N> ns, IRI predicate, Value object) {
-        
-        NodeIRI<N> nodeSubject = new NodeIRI<>(sail.pathGraph().asLong(ns.node()), sail);
-        Supplier<Literal> p = () -> new SequenceLiteral<N, E>(ns.sequence());
-        return nodeIriToTriples(predicate, object, nodeSubject, p);
-    }
+		NodeIRI<N> nodeSubject = new NodeIRI<>(sail.pathGraph().asLong(ns.node()), sail);
+		Supplier<Literal> p = () -> new SequenceLiteral<N, E>(ns.sequence());
+		return nodeIriToTriples(predicate, object, nodeSubject, p);
+	}
 
 	private AutoClosedIterator<Statement> nodeIriToTriples(IRI predicate, Value object, NodeIRI<N> nodeSubject,
 			Supplier<Literal> p) {
 		if (RDF.TYPE.equals(predicate) && (object == null || VG.Node.equals(object))) {
-        	return of(nodeTypeStatement(nodeSubject));
-        } else if (RDF.VALUE.equals(predicate)) {
-        	Literal sequence = p.get();
-        	if (object == null || sequence.equals(object)) {
-        		return of(new HandleGraphValueFactory.UnsafeStatement(nodeSubject, RDF.VALUE, sequence));
-        	} else
-        		return empty();
-        	
-        }
-        Statement[] statements = new Statement[2];
-        if (object == null) {
-            statements[0] = nodeTypeStatement(nodeSubject);
-        }
-        Literal sequence = p.get();
-        Statement nodeValueStatement = new HandleGraphValueFactory.UnsafeStatement(nodeSubject, RDF.VALUE, sequence);
-        statements[1] = nodeValueStatement;
-        
-        var i = from(Arrays.asList(statements[0], statements[1]).iterator());
-        var f = filter(i, Objects::nonNull);
-        return StatementProvider.filter(object, f);
+			return of(nodeTypeStatement(nodeSubject));
+		} else if (RDF.VALUE.equals(predicate)) {
+			Literal sequence = p.get();
+			if (object == null || sequence.equals(object)) {
+				return of(new UnsafeStatement(nodeSubject, RDF.VALUE, sequence));
+			} else
+				return empty();
+
+		}
+		Statement[] statements = new Statement[2];
+		if (object == null) {
+			statements[0] = nodeTypeStatement(nodeSubject);
+		}
+		Literal sequence = p.get();
+		Statement nodeValueStatement = new UnsafeStatement(nodeSubject, RDF.VALUE, sequence);
+		statements[1] = nodeValueStatement;
+
+		var i = from(Arrays.asList(statements[0], statements[1]).iterator());
+		var f = filter(i, Objects::nonNull);
+		return StatementProvider.filter(object, f);
 	}
 
-    private AutoClosedIterator<Statement> nodeToTriples(N node, IRI predicate, Value object) {
-        NodeIRI<N> nodeSubject = new NodeIRI<>(sail.pathGraph().asLong(node), sail);
-        Supplier<Literal> p = () -> vf.createSequenceLiteral(node, sail.pathGraph());
-        return nodeIriToTriples(predicate, object, nodeSubject, p);
-    }
+	private AutoClosedIterator<Statement> nodeToTriples(N node, IRI predicate, Value object) {
+		NodeIRI<N> nodeSubject = new NodeIRI<>(sail.pathGraph().asLong(node), sail);
+		Supplier<Literal> p = () -> sail.getValueFactory().createSequenceLiteral(node, sail.pathGraph());
+		return nodeIriToTriples(predicate, object, nodeSubject, p);
+	}
 
-    private Statement nodeTypeStatement(NodeIRI<N> nodeSubject) {
-        return new HandleGraphValueFactory.UnsafeStatement(nodeSubject, RDF.TYPE, VG.Node);
-    }
+	private Statement nodeTypeStatement(NodeIRI<N> nodeSubject) {
+		return new UnsafeStatement(nodeSubject, RDF.TYPE, VG.Node);
+	}
 
-    private AutoClosedIterator<Statement> linksForNode(N node, IRI predicate, NodeIRI<N> object) {
-        PathGraph<P, S, N, E> pg = sail.pathGraph();
-        AutoClosedIterator<E> asStream = pg.followEdgesToWardsTheLeft(node);
-        if (object != null) {
-            Predicate<E> rightMatches = e -> pg.asLong(e.right()) == object.id();
-            asStream = filter(asStream, rightMatches);
-        }
-        return edgesToStatements(predicate, asStream);
-    }
+	private AutoClosedIterator<Statement> linksForNode(N node, IRI predicate, NodeIRI<N> object) {
+		PathGraph<P, S, N, E> pg = sail.pathGraph();
+		AutoClosedIterator<E> asStream = pg.followEdgesToWardsTheLeft(node);
+		if (object != null) {
+			Predicate<E> rightMatches = e -> pg.asLong(e.right()) == object.id();
+			asStream = filter(asStream, rightMatches);
+		}
+		return edgesToStatements(predicate, asStream);
+	}
 
-    private AutoClosedIterator<Statement> edgesToStatements(IRI predicate, AutoClosedIterator<E> asStream) {
-        if (VG.linksForwardToForward.equals(predicate)) {
-            return map(asStream, this::forwardToForward);
-        } else if (VG.linksForwardToReverse.equals(predicate)) {
-            return map(asStream, this::forwardToReverse);
-        } else if (VG.linksReverseToReverse.equals(predicate)) {
-            return map(asStream, this::reverseToReverse);
-        } else if (VG.linksReverseToForward.equals(predicate)) {
-            return map(asStream, this::reverseToForward);
-        } else if (VG.links.equals(predicate)) {
-            return map(asStream, this::links);
-        } else {
-            var map = map(asStream, e -> {
-                var i = Arrays.asList(
-                        forwardToForward(e),
-                        forwardToReverse(e),
-                        reverseToReverse(e),
-                        reverseToForward(e),
-                        links(e)).iterator();
-                return from(i);
-            });
-            return filter(flatMap(map),
-                    Objects::nonNull);
-        }
-    }
+	private AutoClosedIterator<Statement> edgesToStatements(IRI predicate, AutoClosedIterator<E> asStream) {
+		if (VG.linksForwardToForward.equals(predicate)) {
+			return map(asStream, this::forwardToForward);
+		} else if (VG.linksForwardToReverse.equals(predicate)) {
+			return map(asStream, this::forwardToReverse);
+		} else if (VG.linksReverseToReverse.equals(predicate)) {
+			return map(asStream, this::reverseToReverse);
+		} else if (VG.linksReverseToForward.equals(predicate)) {
+			return map(asStream, this::reverseToForward);
+		} else if (VG.links.equals(predicate)) {
+			return map(asStream, this::links);
+		} else {
+			var map = map(asStream, e -> {
+				var i = Arrays.asList(forwardToForward(e), forwardToReverse(e), reverseToReverse(e),
+						reverseToForward(e), links(e)).iterator();
+				return from(i);
+			});
+			return filter(flatMap(map), Objects::nonNull);
+		}
+	}
 
-    private Statement links(E edge) {
-        return new HandleGraphValueFactory.UnsafeStatement(new NodeIRI<>(sail.pathGraph().asLong(edge.left()), sail), VG.links, new NodeIRI<>(sail.pathGraph().asLong(edge.right()), sail));
-    }
+	private Statement links(E edge) {
+		return new UnsafeStatement(new NodeIRI<>(sail.pathGraph().asLong(edge.left()), sail),
+				VG.links, new NodeIRI<>(sail.pathGraph().asLong(edge.right()), sail));
+	}
 
-    private Statement forwardToForward(E edge) {
-        if (!sail.pathGraph().isReverseNodeHandle(edge.left()) && !sail.pathGraph().isReverseNodeHandle(edge.right())) {
-            return new HandleGraphValueFactory.UnsafeStatement(new NodeIRI<>(sail.pathGraph().asLong(edge.left()), sail), VG.linksForwardToForward, new NodeIRI<>(sail.pathGraph().asLong(edge.right()), sail));
-        } else {
-            return null;
-        }
-    }
+	private Statement forwardToForward(E edge) {
+		if (!sail.pathGraph().isReverseNodeHandle(edge.left()) && !sail.pathGraph().isReverseNodeHandle(edge.right())) {
+			return new UnsafeStatement(
+					new NodeIRI<>(sail.pathGraph().asLong(edge.left()), sail), VG.linksForwardToForward,
+					new NodeIRI<>(sail.pathGraph().asLong(edge.right()), sail));
+		} else {
+			return null;
+		}
+	}
 
-    private Statement forwardToReverse(E edge) {
-        if (!sail.pathGraph().isReverseNodeHandle(edge.left()) && sail.pathGraph().isReverseNodeHandle(edge.right())) {
-            return new HandleGraphValueFactory.UnsafeStatement(new NodeIRI<>(sail.pathGraph().asLong(edge.left()), sail), VG.linksForwardToReverse, new NodeIRI<>(sail.pathGraph().asLong(edge.right()), sail));
-        } else {
-            return null;
-        }
-    }
+	private Statement forwardToReverse(E edge) {
+		if (!sail.pathGraph().isReverseNodeHandle(edge.left()) && sail.pathGraph().isReverseNodeHandle(edge.right())) {
+			return new UnsafeStatement(
+					new NodeIRI<>(sail.pathGraph().asLong(edge.left()), sail), VG.linksForwardToReverse,
+					new NodeIRI<>(sail.pathGraph().asLong(edge.right()), sail));
+		} else {
+			return null;
+		}
+	}
 
-    private Statement reverseToReverse(E edge) {
-        if (sail.pathGraph().isReverseNodeHandle(edge.left()) && sail.pathGraph().isReverseNodeHandle(edge.right())) {
-            return new HandleGraphValueFactory.UnsafeStatement(new NodeIRI<>(sail.pathGraph().asLong(edge.left()), sail), VG.linksReverseToReverse, new NodeIRI<>(sail.pathGraph().asLong(edge.right()), sail));
-        } else {
-            return null;
-        }
-    }
+	private Statement reverseToReverse(E edge) {
+		if (sail.pathGraph().isReverseNodeHandle(edge.left()) && sail.pathGraph().isReverseNodeHandle(edge.right())) {
+			return new UnsafeStatement(
+					new NodeIRI<>(sail.pathGraph().asLong(edge.left()), sail), VG.linksReverseToReverse,
+					new NodeIRI<>(sail.pathGraph().asLong(edge.right()), sail));
+		} else {
+			return null;
+		}
+	}
 
-    private Statement reverseToForward(E edge) {
-        if (sail.pathGraph().isReverseNodeHandle(edge.left()) && !sail.pathGraph().isReverseNodeHandle(edge.right())) {
-            return new HandleGraphValueFactory.UnsafeStatement(new NodeIRI<>(sail.pathGraph().asLong(edge.left()), sail), VG.linksReverseToForward, new NodeIRI<>(sail.pathGraph().asLong(edge.right()), sail));
-        } else {
-            return null;
-        }
-    }
+	private Statement reverseToForward(E edge) {
+		if (sail.pathGraph().isReverseNodeHandle(edge.left()) && !sail.pathGraph().isReverseNodeHandle(edge.right())) {
+			return new UnsafeStatement(
+					new NodeIRI<>(sail.pathGraph().asLong(edge.left()), sail), VG.linksReverseToForward,
+					new NodeIRI<>(sail.pathGraph().asLong(edge.right()), sail));
+		} else {
+			return null;
+		}
+	}
 
-    @Override
-    public double estimatePredicateCardinality(IRI predicate) {
-        if (predicate == null) {
-            return sail.pathGraph().nodeCount()
-                    + sail.pathGraph().edgeCount();
-        } else if (RDF.VALUE.equals(predicate)) {
-            return 10_000; // We really prefer to go linear over all sequences
-        } else if (RDF.TYPE.equals(predicate)) {
-            return sail.pathGraph().nodeCount();
-        } else if (linkPredicates.contains(predicate)) {
-            return sail.pathGraph().edgeCount();
-        } else {
-            return 0;
-        }
-    }
+	@Override
+	public double estimatePredicateCardinality(IRI predicate) {
+		if (predicate == null) {
+			return sail.pathGraph().nodeCount() + sail.pathGraph().edgeCount();
+		} else if (RDF.VALUE.equals(predicate)) {
+			return 10_000; // We really prefer to go linear over all sequences
+		} else if (RDF.TYPE.equals(predicate)) {
+			return sail.pathGraph().nodeCount();
+		} else if (linkPredicates.contains(predicate)) {
+			return sail.pathGraph().edgeCount();
+		} else {
+			return 0;
+		}
+	}
 
-    @Override
-    public double estimateObjectCardinality(Value obj) {
-        if (obj == null || VG.Node.equals(obj)) {
-            return sail.pathGraph().nodeCount();
-        } else if (obj instanceof Literal) {
-            Literal lit = (Literal) obj;
-            if ((XSD.STRING.equals(lit.getDatatype()))) {
-                if (lit.stringValue().length() == 1) {
-                    // About 60% of sequences are length one, and
-                    // fast to retrieve.
-                    return sail.pathGraph().nodeCount() * 0.6;
-                } else {
-                    return sail.pathGraph().nodeCount() * 0.4;
-                }
-            };
-        }
-        return 0;
-    }
+	@Override
+	public double estimateObjectCardinality(Value obj) {
+		if (obj == null || VG.Node.equals(obj)) {
+			return sail.pathGraph().nodeCount();
+		} else if (obj instanceof Literal) {
+			Literal lit = (Literal) obj;
+			if ((XSD.STRING.equals(lit.getDatatype()))) {
+				if (lit.stringValue().length() == 1) {
+					// About 60% of sequences are length one, and
+					// fast to retrieve.
+					return sail.pathGraph().nodeCount() * 0.6;
+				} else {
+					return sail.pathGraph().nodeCount() * 0.4;
+				}
+			}
+			;
+		}
+		return 0;
+	}
 
 }

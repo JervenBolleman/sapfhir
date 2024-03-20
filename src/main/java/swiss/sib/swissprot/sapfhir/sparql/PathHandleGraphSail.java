@@ -37,186 +37,241 @@ import io.github.jervenbolleman.handlegraph4j.StepHandle;
 import swiss.sib.swissprot.sapfhir.values.HandleGraphValueFactory;
 
 /**
- *
+ * A Sail that is backed by an HandleGraph that has paths embedded in it.
+ * 
  * @author <a href="mailto:jerven.bolleman@sib.swiss">Jerven Bolleman</a>
  * @param <P> the type of PathHandle
  * @param <S> the type of StepHandle
  * @param <E> the type of EdgeHandle
  * @param <N> the type of NodeHandle
  */
-public class PathHandleGraphSail<P extends PathHandle, S extends StepHandle, N extends NodeHandle, E extends EdgeHandle<N>> extends AbstractSail {
+public class PathHandleGraphSail<P extends PathHandle, S extends StepHandle, N extends NodeHandle, E extends EdgeHandle<N>>
+		extends AbstractSail {
 
-    private static final String NODE_IRI_PART = "node/";
-    private static final String PATH_IRI_PART = "path/";
-    private static final String STEP_IRI_PART = "step/";
-    private final PathGraph<P, S, N, E> pathGraph;
-    private final String base;
+	private static final String NODE_IRI_PART = "node/";
+	private static final String PATH_IRI_PART = "path/";
+	private static final String STEP_IRI_PART = "step/";
+	private final PathGraph<P, S, N, E> pathGraph;
+	private final String base;
 
-    public PathHandleGraphSail(PathGraph<P, S, N, E> pathGraph, String base) {
-        this.pathGraph = pathGraph;
-        this.base = base;
-    }
+	/**
+	 * A Sail wrapping an handlegraph with paths allowing SPARQL queries on an DNA
+	 * variation graph
+	 * 
+	 * @param pathGraph the graph we are working on
+	 * @param base      the base for all IRI's generated from this graph
+	 */
+	public PathHandleGraphSail(PathGraph<P, S, N, E> pathGraph, String base) {
+		this.pathGraph = pathGraph;
+		this.base = base;
+	}
 
-    @Override
-    protected void shutDownInternal() throws SailException {
-        
-    }
+	@Override
+	protected void shutDownInternal() throws SailException {
 
-    @Override
-    protected PathHandleGraphTripleSailConnection<P, S, N, E> getConnectionInternal()
-            throws SailException {
-        return new PathHandleGraphTripleSailConnection<>(this);
-    }
+	}
 
-    @Override
-    public boolean isWritable() throws SailException {
-        return false;
-    }
+	@Override
+	protected PathHandleGraphTripleSailConnection<P, S, N, E> getConnectionInternal() throws SailException {
+		return new PathHandleGraphTripleSailConnection<>(this);
+	}
 
-    @Override
-    public HandleGraphValueFactory<P, S, N, E> getValueFactory() {
-        return new HandleGraphValueFactory<P, S, N, E>(this);
-    }
+	@Override
+	public boolean isWritable() throws SailException {
+		return false;
+	}
 
-    public String getNodeNameSpace() {
-        return base + NODE_IRI_PART;
-    }
+	@Override
+	public HandleGraphValueFactory<P, S, N, E> getValueFactory() {
+		return new HandleGraphValueFactory<P, S, N, E>(this);
+	}
 
-    public String getPathNameSpace(P path) {
-        String nameOfPath = pathGraph.nameOfPath(path);
-        if (mightBeHttpOrFtpIri(nameOfPath)) {
-            return nameOfPath;
-        } else {
-            return base + PATH_IRI_PART + getPathName(path);
-        }
-    }
+	/**
+	 * The namespace of the nodes. This assumes all nodes are in the same namespace.
+	 * Which is true for GFAv1 derived graphs
+	 * 
+	 * @return the namespace of all nodes.
+	 */
+	public String getNodeNameSpace() {
+		return base + NODE_IRI_PART;
+	}
 
-    public boolean hasPathNameSpace(String namespace) {
-        if (namespace.startsWith(base + PATH_IRI_PART)) {
-            String pathNamePart = namespace.substring(base.length()
-                    + PATH_IRI_PART.length());
-            return pathGraph.pathByName(pathNamePart) != null;
-        } else if (mightBeHttpOrFtpIri(namespace)) {
-            return pathGraph.pathByName(namespace) != null;
-        } else {
-            return false;
-        }
-    }
+	/**
+	 * The namespace for a path.
+	 * 
+	 * @param path to return a namespace for
+	 * @return one which is generated or retrieved
+	 */
+	public String getPathNameSpace(P path) {
+		String nameOfPath = pathGraph.nameOfPath(path);
+		if (mightBeHttpOrFtpIri(nameOfPath)) {
+			return nameOfPath;
+		} else {
+			return base + PATH_IRI_PART + getPathName(path);
+		}
+	}
 
-    public boolean matchesNodeIriPattern(String namespace) {
-        String nodeIriStart = base + NODE_IRI_PART;
-        boolean looksLikeNodeIRI = namespace.startsWith(nodeIriStart);
-        if (looksLikeNodeIRI && namespace.length() > nodeIriStart.length()) {
-            try {
-                Long.parseLong(namespace.substring(nodeIriStart.length()));
-                return true;
-            } catch (NumberFormatException e) {
-                return false;
-            }
-        } else {
-            return false;
-        }
-    }
+	/**
+	 * Test if this graph has a certain path
+	 * 
+	 * @param namespace to search for
+	 * @return if it is found
+	 */
+	public boolean hasPathNameSpace(String namespace) {
+		if (namespace.startsWith(base + PATH_IRI_PART)) {
+			String pathNamePart = namespace.substring(base.length() + PATH_IRI_PART.length());
+			return pathGraph.pathByName(pathNamePart) != null;
+		} else if (mightBeHttpOrFtpIri(namespace)) {
+			return pathGraph.pathByName(namespace) != null;
+		} else {
+			return false;
+		}
+	}
 
-    public N nodeFromIriString(String possibleNodeIri) {
-        String nodeIriStart = base + NODE_IRI_PART;
-        boolean looksLikeNodeIRI = possibleNodeIri.startsWith(nodeIriStart);
-        int nodeIdStart = nodeIriStart.length();
-        if (looksLikeNodeIRI && possibleNodeIri.length() > nodeIdStart) {
-            try {
-                String nodeIdPart = possibleNodeIri.substring(nodeIdStart);
-                long nodeId = Long.parseLong(nodeIdPart);
-                return pathGraph.fromLong(nodeId);
-            } catch (NumberFormatException e) {
-                return null;
-            }
-        } else {
-            return null;
-        }
-    }
+	/**
+	 * Check if a namespace might be for an NODE
+	 * 
+	 * @param namespace to look for
+	 * @return true if the namespace could match nodes else false
+	 */
+	public boolean matchesNodeIriPattern(String namespace) {
+		String nodeIriStart = base + NODE_IRI_PART;
+		boolean looksLikeNodeIRI = namespace.startsWith(nodeIriStart);
+		if (looksLikeNodeIRI && namespace.length() > nodeIriStart.length()) {
+			try {
+				Long.parseLong(namespace.substring(nodeIriStart.length()));
+				return true;
+			} catch (NumberFormatException e) {
+				return false;
+			}
+		} else {
+			return false;
+		}
+	}
 
-    public P pathFromIriString(String possiblePathIri) {
-        if (possiblePathIri.startsWith(base + PATH_IRI_PART)) {
-            return pathGraph.pathByName(possiblePathIri.substring(base.length() + PATH_IRI_PART.length()));
-        } else if (mightBeHttpOrFtpIri(possiblePathIri)) {
-            return pathGraph.pathByName(possiblePathIri);
-        } else {
-            return null;
-        }
-    }
+	/**
+	 * Generate a node for an potential iri
+	 * 
+	 * @param possibleNodeIri that might be in the graph
+	 * @return an N or null
+	 */
+	public N nodeFromIriString(String possibleNodeIri) {
+		String nodeIriStart = base + NODE_IRI_PART;
+		boolean looksLikeNodeIRI = possibleNodeIri.startsWith(nodeIriStart);
+		int nodeIdStart = nodeIriStart.length();
+		if (looksLikeNodeIRI && possibleNodeIri.length() > nodeIdStart) {
+			try {
+				String nodeIdPart = possibleNodeIri.substring(nodeIdStart);
+				long nodeId = Long.parseLong(nodeIdPart);
+				return pathGraph.fromLong(nodeId);
+			} catch (NumberFormatException e) {
+				return null;
+			}
+		} else {
+			return null;
+		}
+	}
 
-    /**
-     * Given an IRI string try to return the S object
-     *
-     * @param possibleStepIri
-     * @return a step or null if not found.
-     */
-    public S stepFromIriString(String possibleStepIri) {
+	/**
+	 * Find a path matching the IRI or null
+	 * 
+	 * @param possiblePathIri to look for
+	 * @return the path or null
+	 */
+	public P pathFromIriString(String possiblePathIri) {
+		if (possiblePathIri.startsWith(base + PATH_IRI_PART)) {
+			return pathGraph.pathByName(possiblePathIri.substring(base.length() + PATH_IRI_PART.length()));
+		} else if (mightBeHttpOrFtpIri(possiblePathIri)) {
+			return pathGraph.pathByName(possiblePathIri);
+		} else {
+			return null;
+		}
+	}
 
-        S s = extractStepFromBasicPathPattern(possibleStepIri);
-        if (s != null) {
-            return s;
-        }
-        return extractStepFromKnownPathName(possibleStepIri);
-    }
+	/**
+	 * Given an IRI string try to return the S object
+	 *
+	 * @param possibleStepIri that might be a step iri
+	 * @return a step or null if not found.
+	 */
+	public S stepFromIriString(String possibleStepIri) {
 
-    private S extractStepFromKnownPathName(String namespace) {
-        Pattern endsWithStepPattern = Pattern.compile(STEP_IRI_PART + "(\\d+)$");
-        Matcher endPatternMatcher = endsWithStepPattern.matcher(namespace);
-        try {
-            if (mightBeHttpOrFtpIri(namespace) && endPatternMatcher.find(5)) {
-                String rankGroup = endPatternMatcher.group(1);
-                long rank = Long.parseLong(rankGroup);
-                String pathName = namespace.substring(0, namespace.length()
-                        - (rankGroup.length() + 6));
-                P pathByName = pathGraph.pathByName(pathName);
-                if (pathByName != null) {
-                    return pathGraph.stepByRankAndPath(pathByName, rank);
-                }
-            }
-        } catch (NumberFormatException e) {
-            return null;
-        }
-        return null;
-    }
+		S s = extractStepFromBasicPathPattern(possibleStepIri);
+		if (s != null) {
+			return s;
+		}
+		return extractStepFromKnownPathName(possibleStepIri);
+	}
 
-    private static boolean mightBeHttpOrFtpIri(String namespace) {
-        return namespace.startsWith("https://")
-                || namespace.startsWith("http://")
-                || namespace.startsWith("ftp://");
-    }
+	private S extractStepFromKnownPathName(String namespace) {
+		Pattern endsWithStepPattern = Pattern.compile(STEP_IRI_PART + "(\\d+)$");
+		Matcher endPatternMatcher = endsWithStepPattern.matcher(namespace);
+		try {
+			if (mightBeHttpOrFtpIri(namespace) && endPatternMatcher.find(5)) {
+				String rankGroup = endPatternMatcher.group(1);
+				long rank = Long.parseLong(rankGroup);
+				String pathName = namespace.substring(0, namespace.length() - (rankGroup.length() + 6));
+				P pathByName = pathGraph.pathByName(pathName);
+				if (pathByName != null) {
+					return pathGraph.stepByRankAndPath(pathByName, rank);
+				}
+			}
+		} catch (NumberFormatException e) {
+			return null;
+		}
+		return null;
+	}
 
-    private S extractStepFromBasicPathPattern(String namespace) {
+	private static boolean mightBeHttpOrFtpIri(String namespace) {
+		return namespace.startsWith("https://") || namespace.startsWith("http://") || namespace.startsWith("ftp://");
+	}
 
-        Pattern standardPathNamePattern = Pattern.compile('^' + base
-                + PATH_IRI_PART + "(.+)/"
-                + STEP_IRI_PART + "(\\d+)");
-        Matcher matcher = standardPathNamePattern.matcher(namespace);
-        try {
-            if (matcher.matches()) {
-                P path = pathGraph.pathByName(matcher.group(1));
-                if (path != null) {
-                    long rank = Long.parseLong(matcher.group(2));
-                    return pathGraph.stepByRankAndPath(path, rank);
-                }
-            }
-        } catch (NumberFormatException e) {
-            return null;
-        }
-        return null;
-    }
+	private S extractStepFromBasicPathPattern(String namespace) {
 
-    public String getPathName(P path) {
-        return pathGraph.nameOfPath(path);
-    }
+		Pattern standardPathNamePattern = Pattern
+				.compile('^' + base + PATH_IRI_PART + "(.+)/" + STEP_IRI_PART + "(\\d+)");
+		Matcher matcher = standardPathNamePattern.matcher(namespace);
+		try {
+			if (matcher.matches()) {
+				P path = pathGraph.pathByName(matcher.group(1));
+				if (path != null) {
+					long rank = Long.parseLong(matcher.group(2));
+					return pathGraph.stepByRankAndPath(path, rank);
+				}
+			}
+		} catch (NumberFormatException e) {
+			return null;
+		}
+		return null;
+	}
 
-    public PathGraph<P, S, N, E> pathGraph() {
-        return pathGraph;
-    }
+	/**
+	 * For a path return its name
+	 * 
+	 * @param path to get the name for
+	 * @return the name
+	 */
+	public String getPathName(P path) {
+		return pathGraph.nameOfPath(path);
+	}
 
-    String getBase() {
-        return base;
-    }
+	/**
+	 * The backing graph
+	 * 
+	 * @return the graph
+	 */
+	public PathGraph<P, S, N, E> pathGraph() {
+		return pathGraph;
+	}
+
+	/**
+	 * The base of the IRIs in this grpah
+	 * 
+	 * @return a string base
+	 */
+	String getBase() {
+		return base;
+	}
 
 	@Override
 	public Supplier<CollectionFactory> getCollectionFactory() {

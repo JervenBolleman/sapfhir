@@ -72,6 +72,8 @@ import swiss.sib.swissprot.handlegraph4jrdf.FALDO;
 import swiss.sib.swissprot.handlegraph4jrdf.VG;
 
 /**
+ * A SailConnection knowing about the specifics in a handlegraph and optimizing
+ * for those use cases.
  *
  * @author <a href="mailto:jerven.bolleman@sib.swiss">Jerven Bolleman</a>
  * @param <P> the type of PathHandle
@@ -85,6 +87,11 @@ public class PathHandleGraphTripleSailConnection<P extends PathHandle, S extends
 	private final PathHandleGraphSail<P, S, N, E> phg;
 	private final SPARQLServiceResolver fd;
 
+	/**
+	 * A sail connection for a certain handlegraph
+	 * 
+	 * @param phg the handle graph that we generate triples for etc.
+	 */
 	public PathHandleGraphTripleSailConnection(PathHandleGraphSail<P, S, N, E> phg) {
 		super(phg);
 		this.phg = phg;
@@ -234,12 +241,11 @@ public class PathHandleGraphTripleSailConnection<P extends PathHandle, S extends
 
 		@Override
 		public Iterable<QueryOptimizer> getOptimizers() {
-			return Arrays.asList(new KnownValuesToConstantsPointerOptimizer(), 
-					new BindingAssignerOptimizer(), new ConstantOptimizer(strategy),
-					new RegexAsStringFunctionOptimizer(ts.getValueFactory()), new CompareOptimizer(),
-					new ConjunctiveConstraintSplitterOptimizer(), new DisjunctiveConstraintOptimizer(),
-					new SameTermFilterOptimizer(), new QueryModelNormalizerOptimizer(), new QueryJoinOptimizer(ev),
-					new IterativeEvaluationOptimizer(),
+			return Arrays.asList(new KnownValuesToConstantsPointerOptimizer(), new BindingAssignerOptimizer(),
+					new ConstantOptimizer(strategy), new RegexAsStringFunctionOptimizer(ts.getValueFactory()),
+					new CompareOptimizer(), new ConjunctiveConstraintSplitterOptimizer(),
+					new DisjunctiveConstraintOptimizer(), new SameTermFilterOptimizer(),
+					new QueryModelNormalizerOptimizer(), new QueryJoinOptimizer(ev), new IterativeEvaluationOptimizer(),
 //                    new FilterOptimizer(),
 					new ProjectionRemovalOptimizer());
 		}
@@ -266,7 +272,7 @@ public class PathHandleGraphTripleSailConnection<P extends PathHandle, S extends
 						knowns.put(i, i);
 					}
 				} catch (IllegalArgumentException | IllegalAccessException e) {
-					// Do nothing this is not critical for performance
+					// Do nothing this is not critical, it is only for performance
 				}
 			}
 		}
@@ -284,10 +290,9 @@ public class PathHandleGraphTripleSailConnection<P extends PathHandle, S extends
 						IRI iri = knowns.get((IRI) node.getValue());
 						if (iri != null) {
 							String name = node.getName();
-							
-							
+
 							boolean anon = node.isAnonymous();
-							
+
 							Var replacement = new Var(name, iri, anon);
 							if (node.isCardinalitySet()) {
 								double car = node.getCardinality();

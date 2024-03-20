@@ -27,114 +27,94 @@ import io.github.jervenbolleman.handlegraph4j.PathHandle;
 import swiss.sib.swissprot.sapfhir.sparql.PathHandleGraphSail;
 
 /**
+ * An IRI hiding a Path+rank combination. Used to avoid repeated IRI to step
+ * translations
  *
  * @author <a href="mailto:jerven.bolleman@sib.swiss">Jerven Bolleman</a>
- * @param <P> the type of PathHandle
+ * @param <P>      the type of PathHandle
+ * @param path     path the step is on
+ * @param rank     of the step
+ * @param graph    the graph the step is in
  */
-public class StepIRI<P extends PathHandle> implements IRI {
+public record StepIRI<P extends PathHandle>(P path, long rank, PathHandleGraphSail<P, ?, ?, ?> graph) implements IRI {
 
 	private static final long serialVersionUID = 1;
+
 	/**
-	 * the path behind the step
+	 * @return the namespace
 	 */
-    private final P path;
-    /**
-     * The rank
-     */
-    private final long rank;
-    /**
-     * the graph sail 
-     */
-    private final PathHandleGraphSail<P, ?, ?, ?> graph;
+	@Override
+	public String getNamespace() {
+		return graph.getPathNameSpace(path) + "/step/";
+	}
 
-    /**
-     * 
-     * @param pathId
-     * @param rank
-     * @param graph
-     */
-    public StepIRI(P pathId, long rank, PathHandleGraphSail<P, ?, ?, ?> graph) {
-        this.path = pathId;
-        this.rank = rank;
-        this.graph = graph;
-    }
+	@Override
+	public String getLocalName() {
+		return Long.toString(rank);
+	}
 
-    /**
-     * @return the namespace
-     */
-    @Override
-    public String getNamespace() {
-        return graph.getPathNameSpace(path) + "/step/";
-    }
+	/**
+	 * @return as string
+	 */
+	@Override
+	public String stringValue() {
+		return getNamespace() + '/' + getLocalName();
+	}
 
-    /**
-     * 
-     */
-    @Override
-    public String getLocalName() {
-        return Long.toString(rank);
-    }
+	/**
+	 * the rank of this step along the path
+	 * 
+	 * @return rank of this step
+	 */
+	public long rank() {
+		return rank;
+	}
 
-    /**
-     * @return as string
-     */
-    @Override
-    public String stringValue() {
-        return getNamespace() + '/' + getLocalName();
-    }
+	/**
+	 * the path that this step is on
+	 * 
+	 * @return path of this step
+	 */
+	public P path() {
+		return path;
+	}
 
-    /**
-     * 
-     * @return rank
-     */
-    public long rank() {
-        return rank;
-    }
+	/**
+	 * @return as string
+	 */
+	@Override
+	public String toString() {
+		return stringValue();
+	}
 
-    /**
-     * 
-     * @return path
-     */
-    public P path() {
-        return path;
-    }
+	@Override
+	public int hashCode() {
+		return stringValue().hashCode();
+	}
 
-    /**
-     * @return as string
-     */
-    @Override
-    public String toString() {
-        return stringValue();
-    }
-
-    @Override
-    public int hashCode() {
-        return stringValue().hashCode();
-    }
-
-    @Override
-    public boolean equals(Object obj) {
-        if (this == obj) {
-            return true;
-        }
-        if (obj == null) {
-            return false;
-        }
-        if (obj instanceof StepIRI<?>) {
-            final StepIRI<?> other = (StepIRI<?>) obj;
-            if (this.rank != other.rank()) {
-                return false;
-            }
-            if (!Objects.equals(this.path, other.path())) {
-                return false;
-            }
-            if (!Objects.equals(this.graph, other.graph)) {
-                return false;
-            }
-            return true;
-        } else if (obj instanceof IRI) {
-            return stringValue().equals(((IRI) obj).stringValue());
-        }
-        return true;
-    }
+	@Override
+	public boolean equals(Object obj) {
+		if (this == obj) {
+			return true;
+		}
+		if (obj == null) {
+			return false;
+		}
+		if (obj instanceof StepIRI<?>) {
+			final StepIRI<?> other = (StepIRI<?>) obj;
+			if (this.rank != other.rank()) {
+				return false;
+			}
+			if (!Objects.equals(this.path, other.path())) {
+				return false;
+			}
+			if (!Objects.equals(this.graph, other.graph)) {
+				return false;
+			}
+			return true;
+		} else if (obj instanceof IRI) {
+			return stringValue().equals(((IRI) obj).stringValue());
+		}
+		return true;
+	}
 }

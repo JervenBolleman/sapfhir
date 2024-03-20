@@ -29,25 +29,33 @@ import io.github.jervenbolleman.handlegraph4j.StepHandle;
 import swiss.sib.swissprot.sapfhir.sparql.PathHandleGraphSail;
 
 /**
- *
+ * * An IRI hiding a path+position combination. May be equal to any IRI
+ * representing the same path+position even if the other IRI is hiding the begin
+ * of a step instead of the end
+ * 
  * @author <a href="mailto:jerven.bolleman@sib.swiss">Jerven Bolleman</a>
- * @param <P> the type of PathHandle
- * @param <S> the type of StepHandle
+ * @param <P>      the type of PathHandle
+ * @param <S>      the type of StepHandle
+ * @param path     path the step is on
+ * @param rank     of the step
+ * @param graph    the graph the step is in
+ * @param position where the step ends along the path
  */
-public class StepEndPositionIRI<P extends PathHandle, S extends StepHandle> extends StepPositionIRI<P, S> {
+public record StepEndPositionIRI<P extends PathHandle, S extends StepHandle>(P path, long rank,
+		PathHandleGraphSail<P, S, ?, ?> graph, long position) implements StepPositionIRI<P, S> {
+
 	private static final long serialVersionUID = 1;
 
-	public StepEndPositionIRI(P pathId, long rank, PathHandleGraphSail<P, S, ?, ?> graph) {
-		this(pathId, rank, graph, -404);
-	}
-
-	public StepEndPositionIRI(P pathId, long rank, PathHandleGraphSail<P, S, ?, ?> graph, long endPosition) {
-		super(endPosition, pathId, rank, graph);
-	}
-
-	@Override
-	public String getNamespace() {
-		return graph.getPathNameSpace(path) + StepPositionIRI.POSITION;
+	/**
+	 * A step end position where we need to calculate the position as it is not
+	 * known at object creation time
+	 * 
+	 * @param path  path the step is on
+	 * @param rank  of the step
+	 * @param graph the graph the step is in
+	 */
+	public StepEndPositionIRI(P path, long rank, PathHandleGraphSail<P, S, ?, ?> graph) {
+		this(path, rank, graph, UNSET_POSITION);
 	}
 
 	@Override
@@ -75,7 +83,7 @@ public class StepEndPositionIRI<P extends PathHandle, S extends StepHandle> exte
 		if (!Objects.equals(this.path(), other.path())) {
 			return false;
 		}
-		if (!Objects.equals(this.graph, other.graph)) {
+		if (!Objects.equals(this.graph, other.graph())) {
 			return false;
 		}
 		if (this.rank == other.rank()) {
@@ -134,7 +142,7 @@ public class StepEndPositionIRI<P extends PathHandle, S extends StepHandle> exte
 
 	@Override
 	public long getEndPosition() {
-		if (hasCachedPosition()) {
+		if (hasCachedPosition(position)) {
 			return position;
 		} else {
 			PathGraph<P, S, ?, ?> pg = graph.pathGraph();

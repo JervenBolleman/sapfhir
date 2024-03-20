@@ -45,148 +45,150 @@ import io.github.jervenbolleman.handlegraph4j.StepHandle;
 import swiss.sib.swissprot.sapfhir.sparql.PathHandleGraphSail;
 
 /**
+ * A value factory that prefers to create Values backed by objects in the
+ * backing graph
  *
  * @author <a href="mailto:jerven.bolleman@sib.swiss">Jerven Bolleman</a>
- * @param <P> the type of PathHandle
- * @param <S> the type of StepHandle
- * @param <E> the type of EdgeHandle
- * @param <N> the type of NodeHandle
+ * @param <P>   the type of PathHandle
+ * @param <S>   the type of StepHandle
+ * @param <E>   the type of EdgeHandle
+ * @param <N>   the type of NodeHandle
+ * @param graph the sail for which we create values
  */
-public class HandleGraphValueFactory<P extends PathHandle, S extends StepHandle, N extends NodeHandle, E extends EdgeHandle<N>> implements ValueFactory {
+public record HandleGraphValueFactory<P extends PathHandle, S extends StepHandle, N extends NodeHandle, E extends EdgeHandle<N>>(
+		PathHandleGraphSail<P, S, N, E> graph) implements ValueFactory {
+
+	@Override
+	public IRI createIRI(String iri) {
+		return getInstance().createIRI(iri);
+	}
+
+	@Override
+	public IRI createIRI(String namespace, String localName) {
+		if (graph.hasPathNameSpace(namespace)) {
+			P p = graph.pathGraph().pathByName(namespace + localName);
+			return new PathIRI<>(p, graph);
+		} else if (graph.matchesNodeIriPattern(namespace)) {
+			try {
+				long l = Long.valueOf(localName);
+				return new NodeIRI<>(l, graph);
+			} catch (NumberFormatException e) {
+				return getInstance().createIRI(namespace, localName);
+			}
+		}
+
+		try {
+			S step = graph.stepFromIriString(namespace + localName);
+			if (step != null) {
+				return new StepIRI<P>(graph.pathGraph().pathOfStep(step), graph.pathGraph().rankOfStep(step), graph);
+			}
+		} catch (NumberFormatException e) {
+			return getInstance().createIRI(namespace, localName);
+		}
+
+		return getInstance().createIRI(namespace, localName);
+	}
+
+	@Override
+	public BNode createBNode() {
+		return SimpleValueFactory.getInstance().createBNode();
+	}
+
+	@Override
+	public BNode createBNode(String nodeID) {
+		return SimpleValueFactory.getInstance().createBNode(nodeID);
+	}
+
+	@Override
+	public Literal createLiteral(String label) {
+		return SimpleValueFactory.getInstance().createLiteral(label);
+	}
+
+	@Override
+	public Literal createLiteral(String label, String language) {
+		return SimpleValueFactory.getInstance().createLiteral(label, language);
+	}
+
+	@Override
+	public Literal createLiteral(String label, IRI datatype) {
+		return SimpleValueFactory.getInstance().createLiteral(label, datatype);
+	}
+
+	@Override
+	public Literal createLiteral(boolean value) {
+		return SimpleValueFactory.getInstance().createLiteral(value);
+	}
+
+	@Override
+	public Literal createLiteral(byte value) {
+		return SimpleValueFactory.getInstance().createLiteral(value);
+	}
+
+	@Override
+	public Literal createLiteral(short value) {
+		return getInstance().createLiteral(value);
+	}
+
+	@Override
+	public Literal createLiteral(int value) {
+		return getInstance().createLiteral(value);
+	}
+
+	@Override
+	public Literal createLiteral(long value) {
+		return getInstance().createLiteral(value);
+	}
+
+	@Override
+	public Literal createLiteral(float value) {
+		return getInstance().createLiteral(value);
+	}
+
+	@Override
+	public Literal createLiteral(double value) {
+		return getInstance().createLiteral(value);
+	}
+
+	@Override
+	public Literal createLiteral(BigDecimal bigDecimal) {
+		return getInstance().createLiteral(bigDecimal);
+	}
+
+	@Override
+	public Literal createLiteral(BigInteger bigInteger) {
+		return getInstance().createLiteral(bigInteger);
+	}
+
+	@Override
+	public Literal createLiteral(XMLGregorianCalendar calendar) {
+		return getInstance().createLiteral(calendar);
+	}
+
+	@Override
+	public Literal createLiteral(Date date) {
+		return getInstance().createLiteral(date);
+	}
+
+	@Override
+	public Statement createStatement(Resource subject, IRI predicate, Value object) {
+		return getInstance().createStatement(subject, predicate, object);
+	}
+
+	@Override
+	public Statement createStatement(Resource subject, IRI predicate, Value object, Resource context) {
+		return getInstance().createStatement(subject, predicate, object, context);
+	}
 
 	/**
-	 * backing graph
+	 * Create a literal for a sequence that coresponds to the node handle
+	 * 
+	 * @param handle that we want the sequence of
+	 * @param graph  that the handle is in
+	 * @return a Literal for a sequence
 	 */
-    private final PathHandleGraphSail<P, S, N, E> graph;
-
-    public HandleGraphValueFactory(PathHandleGraphSail<P, S, N, E> graph) {
-        this.graph = graph;
-    }
-
-    @Override
-    public IRI createIRI(String iri) {
-        return getInstance().createIRI(iri);
-    }
-
-    @Override
-    public IRI createIRI(String namespace, String localName) {
-        if (graph.hasPathNameSpace(namespace)) {
-            P p = graph.pathGraph().pathByName(namespace + localName);
-            return new PathIRI<>(p, graph);
-        } else if (graph.matchesNodeIriPattern(namespace)) {
-            try {
-                long l = Long.valueOf(localName);
-                return new NodeIRI<>(l, graph);
-            } catch (NumberFormatException e) {
-                return getInstance().createIRI(namespace, localName);
-            }
-        }
-
-        try {
-            S step = graph.stepFromIriString(namespace + localName);
-            if (step != null) {
-                return new StepIRI<P>(graph.pathGraph().pathOfStep(step), graph.pathGraph().rankOfStep(step), graph);
-            }
-        } catch (NumberFormatException e) {
-            return getInstance().createIRI(namespace, localName);
-        }
-
-        return getInstance().createIRI(namespace, localName);
-    }
-
-    @Override
-    public BNode createBNode() {
-        return SimpleValueFactory.getInstance().createBNode();
-    }
-
-    @Override
-    public BNode createBNode(String nodeID) {
-        return SimpleValueFactory.getInstance().createBNode(nodeID);
-    }
-
-    @Override
-    public Literal createLiteral(String label) {
-        return SimpleValueFactory.getInstance().createLiteral(label);
-    }
-
-    @Override
-    public Literal createLiteral(String label, String language) {
-        return SimpleValueFactory.getInstance().createLiteral(label, language);
-    }
-
-    @Override
-    public Literal createLiteral(String label, IRI datatype) {
-        return SimpleValueFactory.getInstance().createLiteral(label, datatype);
-    }
-
-    @Override
-    public Literal createLiteral(boolean value) {
-        return SimpleValueFactory.getInstance().createLiteral(value);
-    }
-
-    @Override
-    public Literal createLiteral(byte value) {
-        return SimpleValueFactory.getInstance().createLiteral(value);
-    }
-
-    @Override
-    public Literal createLiteral(short value) {
-        return getInstance().createLiteral(value);
-    }
-
-    @Override
-    public Literal createLiteral(int value) {
-        return getInstance().createLiteral(value);
-    }
-
-    @Override
-    public Literal createLiteral(long value) {
-        return getInstance().createLiteral(value);
-    }
-
-    @Override
-    public Literal createLiteral(float value) {
-        return getInstance().createLiteral(value);
-    }
-
-    @Override
-    public Literal createLiteral(double value) {
-        return getInstance().createLiteral(value);
-    }
-
-    @Override
-    public Literal createLiteral(BigDecimal bigDecimal) {
-        return getInstance().createLiteral(bigDecimal);
-    }
-
-    @Override
-    public Literal createLiteral(BigInteger bigInteger) {
-        return getInstance().createLiteral(bigInteger);
-    }
-
-    @Override
-    public Literal createLiteral(XMLGregorianCalendar calendar) {
-        return getInstance().createLiteral(calendar);
-    }
-
-    @Override
-    public Literal createLiteral(Date date) {
-        return getInstance().createLiteral(date);
-    }
-
-    @Override
-    public Statement createStatement(Resource subject, IRI predicate, Value object) {
-    	return getInstance().createStatement(subject, predicate, object);
-    }
-
-    @Override
-    public Statement createStatement(Resource subject, IRI predicate, Value object, Resource context) {
-        return getInstance().createStatement(subject, predicate, object, context);
-    }
-
-    public Literal createSequenceLiteral(final N handle, HandleGraph<N, E> graph) {
-        return new SequenceLiteralWithNodeHandle<>(graph, handle);
-    }
+	public Literal createSequenceLiteral(final N handle, HandleGraph<N, E> graph) {
+		return new SequenceLiteralWithNodeHandle<>(graph, handle);
+	}
 
 	@Override
 	public Literal createLiteral(String label, CoreDatatype datatype) {
@@ -198,61 +200,4 @@ public class HandleGraphValueFactory<P extends PathHandle, S extends StepHandle,
 		return getInstance().createLiteral(label, datatype, coreDatatype);
 	}
 
-	/**
-     * Only to be used when we know that the values are good.
-     */
-	public static record UnsafeStatement(Resource subject, IRI predicate, Value object) implements Statement {
-
-		private static final long serialVersionUID = 1L;
-
-		@Override
-		public Resource getSubject() {
-			return subject;
-		}
-
-		@Override
-		public IRI getPredicate() {
-			return predicate;
-		}
-
-		@Override
-		public Value getObject() {
-			return object;
-		}
-
-		@Override
-		public Resource getContext() {
-			return null;
-		}
-
-		@Override
-		public boolean equals(Object o) {
-			if (this == o) {
-				return true;
-			}
-
-			if (!(o instanceof Statement)) {
-				return false;
-			}
-
-			Statement that = (Statement) o;
-
-			return subject.equals(that.getSubject()) && predicate.equals(that.getPredicate())
-					&& object.equals(that.getObject()) && that.getContext() == null;
-		}
-
-		@Override
-		public int hashCode() {
-			int result = 31 + subject.hashCode();
-			result = 31 * result + predicate.hashCode();
-			result = 31 * result + object.hashCode();
-			return result;
-		}
-
-		@Override
-		public String toString() {
-			return "(" + subject + ", " + predicate + ", " + object + ") [" + null + "]";
-		}
-
-	}
 }

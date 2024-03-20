@@ -26,81 +26,77 @@ import io.github.jervenbolleman.handlegraph4j.StepHandle;
 import swiss.sib.swissprot.sapfhir.sparql.PathHandleGraphSail;
 
 /**
+ * Hiding a begin or end position in an IRI allowing for fast compares
  *
  * @author <a href="mailto:jerven.bolleman@sib.swiss">Jerven Bolleman</a>
  * @param <P> the type of PathHandle
  * @param <S> the type of StepHandle
  */
-public abstract class StepPositionIRI<P extends PathHandle, S extends StepHandle> implements IRI {
+public sealed interface StepPositionIRI<P extends PathHandle, S extends StepHandle> extends IRI
+		permits StepBeginPositionIRI, StepEndPositionIRI {
 
-	private static final long serialVersionUID = 1;
-	private static final int POSITION_NOT_SET = -404;
-    public static final String POSITION = "/position/";
-    protected final long position;
-    protected final P path;
-    protected final long rank;
-    protected final PathHandleGraphSail<P, S, ?, ?> graph;
+	/**
+	 * The default separator between the path part of the iri and the actual
+	 * position value
+	 */
+	public static final String POSITION = "/position/";
 
-    /**
-     * 
-     * @param path
-     * @param rank
-     * @param graph
-     */
-    protected StepPositionIRI(P path, long rank, PathHandleGraphSail<P, S, ?, ?> graph) {
-        this.position = POSITION_NOT_SET;
-        this.path = path;
-        this.rank = rank;
-        this.graph = graph;
-    }
+	@Override
+	public default String getNamespace() {
+		return graph().getPathNameSpace(path()) + POSITION;
+	}
 
-    /**
-     * 
-     * @param position
-     * @param path
-     * @param rank
-     * @param graph
-     */
-    protected StepPositionIRI(long position, P path, long rank, PathHandleGraphSail<P, S, ?, ?> graph) {
-        this.position = position;
-        this.path = path;
-        this.rank = rank;
-        this.graph = graph;
-    }
+	/**
+	 * A position in use is always 0 or greater, however we use this field to mark
+	 * that we don't know the position of the step and therefore it needs to
+	 * recalculated.
+	 * 
+	 * -404 is used to look like 404 NOT FOUND from http to make it easier to spot.
+	 */
+	static final long UNSET_POSITION = -404;
 
-    /**
-     * 
-     * @return the path
-     */
-    public P path() {
-        return path;
-    }
+	/**
+	 * The path the step is on
+	 * 
+	 * @return the path
+	 */
+	public P path();
 
-    /**
-     * 
-     * @return the rank
-     */
-    public long rank() {
-        return rank;
-    }
+	/**
+	 * The rank of the step along the path
+	 * 
+	 * @return the rank of the step
+	 */
+	public long rank();
 
-    /**
-     * 
-     * @return if the position is cached
-     */
-    protected boolean hasCachedPosition() {
-        return position != POSITION_NOT_SET;
-    }
+	/**
+	 * Graph that the step is in
+	 * 
+	 * @return the graph in which this step position is in
+	 */
+	public PathHandleGraphSail<P, S, ?, ?> graph();
 
-    /**
-     * 
-     * @return the endposition
-     */
-    public abstract long getEndPosition();
+	/**
+	 * Positions may be cached for performance but this is not guaranteed
+	 * 
+	 * @param position to check if it is cached or not
+	 * @return if true the position is cached
+	 */
+	default boolean hasCachedPosition(long position) {
+		return position != UNSET_POSITION;
+	};
 
-    /**
-     * 
-     * @return the begin position
-     */
-    public abstract long getBeginPosition();
+	/**
+	 * The end position of this step along the path in basepair space
+	 * 
+	 * @return the endposition
+	 */
+	public abstract long getEndPosition();
+
+	/**
+	 * The begin position of this step along the path in basepair space
+	 * 
+	 * @return the begin position
+	 */
+	public abstract long getBeginPosition();
 }

@@ -27,88 +27,77 @@ import io.github.jervenbolleman.handlegraph4j.NodeHandle;
 import swiss.sib.swissprot.sapfhir.sparql.PathHandleGraphSail;
 
 /**
- *
+ * An IRI that hides a node, allows comparing in node space instead of string
+ * space
+ * 
  * @author <a href="mailto:jerven.bolleman@sib.swiss">Jerven Bolleman</a>
- * @param <N> the type of NodeHandle
+ * @param <N>   the type of NodeHandle
+ * @param id    the id of the node in the graph
+ * @param graph that the node is present in
  */
-public class NodeIRI<N extends NodeHandle> implements IRI {
+public record NodeIRI<N extends NodeHandle>(long id, PathHandleGraphSail<?, ?, N, ?> graph) implements IRI {
 	private static final long serialVersionUID = 1;
 
+	@Override
+	public String getNamespace() {
+		return graph.getNodeNameSpace();
+	}
+
+	@Override
+	public String getLocalName() {
+		return Long.toString(Math.abs(id));
+	}
+
+	@Override
+	public String stringValue() {
+		return getNamespace() + Math.abs(id);
+	}
+
+	@Override
+	public String toString() {
+		return stringValue();
+	}
+
 	/**
-	 * nodeId
+	 * The node hiding in this IRI
+	 * 
+	 * @return a node
 	 */
-    private final long nodeId;
-    /**
-     * The backing graph
-     */
-    private final PathHandleGraphSail<?, ?, N, ?> graph;
+	public N node() {
+		return graph.pathGraph().fromLong(id);
+	}
 
-    public NodeIRI(long nodeId, PathHandleGraphSail<?, ?, N, ?> graph) {
-        this.nodeId = nodeId;
-        this.graph = graph;
-    }
+	@Override
+	public int hashCode() {
+		return stringValue().hashCode();
+	}
 
-    @Override
-    public String getNamespace() {
-        return graph.getNodeNameSpace();
-    }
-
-    @Override
-    public String getLocalName() {
-        return Long.toString(Math.abs(nodeId));
-    }
-
-    @Override
-    public String stringValue() {
-        return getNamespace() + Math.abs(nodeId);
-    }
-
-    @Override
-    public String toString() {
-        return stringValue();
-    }
-
-    public long id() {
-        return nodeId;
-    }
-
-    public N node() {
-        return graph.pathGraph().fromLong(nodeId);
-    }
-
-    @Override
-    public int hashCode() {
-        return stringValue().hashCode();
-    }
-
-    @Override
-    public boolean equals(Object obj) {
-        if (this == obj) {
-            return true;
-        }
-        if (obj == null) {
-            return false;
-        }
-        if (obj instanceof NodeIRI<?>) {
-            final NodeIRI<?> other = (NodeIRI<?>) obj;
-
-            if (!Objects.equals(this.graph, other.graph)) {
-                return false;
-            }
-            var pg = this.graph.pathGraph();
-            var thisNode = pg.fromLong(this.nodeId);
-            var thatNode = pg.fromLong(other.nodeId);
-            var thisIsRev = pg.isReverseNodeHandle(thisNode);
-            var thatIsRev = pg.isReverseNodeHandle(thatNode);
-            if (thisIsRev == thatIsRev) {
-                return pg.equalNodes(thisNode, thatNode);
-            } else {
-                var flipThat = pg.flip(thatNode);
-                return pg.equalNodes(thisNode, flipThat);
-            }
-        } else if (obj instanceof IRI) {
-            return stringValue().equals(((IRI) obj).stringValue());
-        }
-        return true;
-    }
+	@Override
+	public boolean equals(Object obj) {
+		if (this == obj) {
+			return true;
+		}
+		if (obj == null) {
+			return false;
+		}
+		if (obj instanceof NodeIRI<?> other) {
+			if (!Objects.equals(this.graph, other.graph)) {
+				return false;
+			}
+			var pg = this.graph.pathGraph();
+			var thisNode = pg.fromLong(this.id);
+			var thatNode = pg.fromLong(other.id);
+			var thisIsRev = pg.isReverseNodeHandle(thisNode);
+			var thatIsRev = pg.isReverseNodeHandle(thatNode);
+			if (thisIsRev == thatIsRev) {
+				return pg.equalNodes(thisNode, thatNode);
+			} else {
+				var flipThat = pg.flip(thatNode);
+				return pg.equalNodes(thisNode, flipThat);
+			}
+		} else if (obj instanceof IRI) {
+			return stringValue().equals(((IRI) obj).stringValue());
+		}
+		return true;
+	}
 }
